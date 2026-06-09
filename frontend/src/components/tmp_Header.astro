@@ -1,0 +1,169 @@
+---
+// Header.astro — navigation bar.
+// Auth state (username, is_admin) is read from the JWT in localStorage
+// and applied via client-side JS after the page loads.
+---
+<header>
+    <nav>
+        <h2>
+            <a href="/" class="brand-link">idktfCTF</a>
+        </h2>
+        <div class="internal-links">
+            <a href="/challenges">Challenges</a>
+            <a href="/scoreboard">Scoreboard</a>
+            <!-- shown/hidden by JS based on auth state -->
+            <a href="/profile" id="nav-profile" style="display:none">Profile</a>
+            <a href="/admin"   id="nav-admin"   style="display:none">Admin</a>
+        </div>
+        <div class="auth-links">
+            <!-- logged-out state -->
+            <span id="nav-loggedout">
+                <a href="/login"    class="btn btn-ghost"   >Login</a>
+                <a href="/register" class="btn btn-primary" >Register</a>
+            </span>
+            <!-- logged-in state (hidden until JS runs) -->
+            <span id="nav-loggedin" style="display:none">
+                <span id="nav-username" class="username"></span>
+                <button id="nav-logout" class="btn btn-ghost">Logout</button>
+            </span>
+        </div>
+        <button id="hamburger" class="hamburger" aria-label="Toggle menu">
+            <span></span><span></span><span></span>
+        </button>
+    </nav>
+    <div id="mobile-menu" class="mobile-menu">
+        <a href="/challenges">Challenges</a>
+        <a href="/scoreboard">Scoreboard</a>
+        <a href="/profile" id="mob-profile" style="display:none">Profile</a>
+        <a href="/admin"   id="mob-admin"   style="display:none">Admin</a>
+        <div class="mobile-menu-bottom" id="mob-loggedout">
+            <a href="/login">Login</a>
+            <a href="/register">Register</a>
+        </div>
+        <div class="mobile-menu-bottom" id="mob-loggedin" style="display:none">
+            <span id="mob-username" class="username"></span>
+            <button id="mob-logout" class="btn btn-ghost">Logout</button>
+        </div>
+    </div>
+</header>
+
+<script>
+    import { currentUser, token } from '../lib/api';
+
+    // Update nav to reflect auth state.
+    function updateNav() {
+        const user = currentUser();
+        const loggedOut = document.getElementById('nav-loggedout')!;
+        const loggedIn  = document.getElementById('nav-loggedin')!;
+        const mobOut    = document.getElementById('mob-loggedout')!;
+        const mobIn     = document.getElementById('mob-loggedin')!;
+
+        if (user) {
+            loggedOut.style.display = 'none';
+            loggedIn.style.display  = 'flex';
+            mobOut.style.display    = 'none';
+            mobIn.style.display     = 'flex';
+
+            document.getElementById('nav-username')!.textContent = user.username;
+            document.getElementById('mob-username')!.textContent = user.username;
+
+            document.getElementById('nav-profile')!.style.display = '';
+            document.getElementById('mob-profile')!.style.display = '';
+
+            if (user.is_admin) {
+                document.getElementById('nav-admin')!.style.display = '';
+                document.getElementById('mob-admin')!.style.display = '';
+            }
+        }
+    }
+
+    function logout() {
+        token.clear();
+        window.location.href = '/login';
+    }
+
+    document.getElementById('nav-logout')?.addEventListener('click', logout);
+    document.getElementById('mob-logout')?.addEventListener('click', logout);
+
+    // Hamburger toggle (same pattern as idktheflag/Website)
+    const hamburger = document.getElementById('hamburger')!;
+    const mobileMenu = document.getElementById('mobile-menu')!;
+    hamburger.addEventListener('click', () => {
+        hamburger.classList.toggle('open');
+        mobileMenu.classList.toggle('open');
+    });
+    mobileMenu.querySelectorAll('a').forEach(a =>
+        a.addEventListener('click', () => {
+            hamburger.classList.remove('open');
+            mobileMenu.classList.remove('open');
+        })
+    );
+
+    updateNav();
+</script>
+
+<style>
+    header {
+        margin: 0;
+        padding: 0 1.5em;
+        background: var(--bg-color);
+        border-bottom: 2px solid var(--accent);
+        position: relative;
+    }
+    nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 60px;
+        max-width: 1200px;
+        margin: 0 auto;
+        gap: 1.5em;
+    }
+    h2 { margin: 0; font-size: 1.2em; }
+    .brand-link { color: var(--text-heading) !important; font-weight: 700; }
+    .brand-link:hover { color: var(--accent) !important; text-decoration: none; }
+
+    .internal-links { display: flex; gap: 1.5em; }
+    nav a { color: var(--text-heading); font-weight: 700; transition: color 0.2s; }
+    nav a:hover { color: var(--accent); text-decoration: none; }
+
+    .auth-links { display: flex; align-items: center; gap: 0.6em; margin-left: auto; }
+    #nav-loggedin { display: flex; align-items: center; gap: 0.6em; }
+    .username { color: var(--text-muted); font-size: 0.9em; }
+
+    .hamburger {
+        display: none; flex-direction: column; justify-content: center;
+        gap: 5px; background: none; border: none; cursor: pointer; padding: 0.4em; z-index: 1001;
+    }
+    .hamburger span {
+        display: block; width: 22px; height: 2px;
+        background: var(--text-heading); transition: transform 0.2s, opacity 0.2s;
+    }
+    .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; }
+    .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    .mobile-menu {
+        display: none; flex-direction: column;
+        position: absolute; top: 100%; left: 0; right: 0;
+        background: var(--bg-color); border-bottom: 2px solid var(--accent);
+        padding: 1rem 1.5rem; z-index: 1000;
+    }
+    .mobile-menu a {
+        color: var(--text-heading); font-weight: 700; padding: 0.7rem 0;
+        border-bottom: 1px solid var(--border); transition: color 0.2s;
+    }
+    .mobile-menu a:hover { color: var(--accent); }
+    .mobile-menu-bottom {
+        display: flex; align-items: center; gap: 1.5rem;
+        padding-top: 0.8rem; margin-top: 0.3rem;
+    }
+    .mobile-menu-bottom a { border-bottom: none; padding: 0; }
+
+    @media (max-width: 720px) {
+        .internal-links { display: none; }
+        .auth-links { display: none; }
+        .hamburger { display: flex; }
+        .mobile-menu.open { display: flex; }
+    }
+</style>

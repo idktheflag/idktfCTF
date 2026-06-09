@@ -1,0 +1,267 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Challenges">
+    <h1>Challenges</h1>
+
+    <!-- Category filter tabs, populated by JS -->
+    <div id="category-tabs" class="category-tabs"></div>
+
+    <!-- Challenge grid, populated by JS -->
+    <div id="challenge-grid" class="challenge-grid">
+        <p class="loading">Loading...</p>
+    </div>
+
+    <!-- Flag submission modal -->
+    <div id="modal-backdrop" class="modal-backdrop" style="display:none">
+        <div class="modal card">
+            <button id="modal-close" class="modal-close" aria-label="Close">✕</button>
+            <h2 id="modal-title"></h2>
+            <p  id="modal-category" class="modal-meta"></p>
+            <p  id="modal-points"   class="modal-meta"></p>
+            <p  id="modal-hint"     class="callout"     style="display:none"></p>
+            <div id="modal-description" class="modal-desc"></div>
+
+            <div id="submit-area">
+                <div class="field" style="margin-top:1.25rem">
+                    <label for="flag-input">Flag</label>
+                    <input type="text" id="flag-input" placeholder="flag{...}" autocomplete="off" />
+                </div>
+                <p id="submit-msg" style="display:none"></p>
+                <button id="submit-btn" class="btn btn-primary" style="margin-top:0.5rem">Submit</button>
+            </div>
+
+            <!-- shown after a correct submission -->
+            <div id="solved-banner" class="solved-banner" style="display:none">
+                <span id="solved-text"></span>
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<script>
+    import { challenges, currentUser, ApiError } from '../lib/api';
+    import type { ChallengeListItem, ChallengeDetail } from '../lib/api';
+
+    // Auth guard — challenges require login.
+    if (!currentUser()) window.location.href = '/login';
+
+    const grid    = document.getElementById('challenge-grid')!;
+    const tabsEl  = document.getElementById('category-tabs')!;
+
+    let allChallenges: ChallengeListItem[] = [];
+    let activeCategory = 'all';
+
+    // ── Load challenges ───────────────────────────────────────────────────────
+    async function load() {
+        try {
+            allChallenges = await challenges.list();
+            renderTabs();
+            renderGrid();
+        } catch {
+            grid.innerHTML = '<p class="msg-error">Failed to load challenges.</p>';
+        }
+    }
+
+    // ── Category tabs ──────────────────────────────────────────────────────────
+    function renderTabs() {
+        const cats = ['all', ...new Set(allChallenges.map(c => c.category))];
+        tabsEl.innerHTML = cats.map(cat => `
+            <button class="tab-btn ${cat === activeCategory ? 'active' : ''}"
+                    data-cat="${cat}">
+                ${cat}
+            </button>
+        `).join('');
+        tabsEl.querySelectorAll('.tab-btn').forEach(btn =>
+            btn.addEventListener('click', () => {
+                activeCategory = (btn as HTMLElement).dataset.cat!;
+                renderTabs();
+                renderGrid();
+            })
+        );
+    }
+
+    // ── Challenge cards ────────────────────────────────────────────────────────
+    function renderGrid() {
+        const visible = activeCategory === 'all'
+            ? allChallenges
+            : allChallenges.filter(c => c.category === activeCategory);
+
+        if (visible.length === 0) {
+            grid.innerHTML = '<p class="loading">No challenges yet.</p>';
+            return;
+        }
+
+        grid.innerHTML = visible.map(c => `
+            <button class="challenge-card ${c.solved_by_me ? 'solved' : ''}"
+                    data-id="${c.id}">
+                <span class="card-category">${c.category}</span>
+                <span class="card-title">${c.title}</span>
+                <span class="card-points">${c.points} pts</span>
+                ${c.solved_by_me ? '<span class="card-solved">✓</span>' : ''}
+            </button>
+        `).join('');
+
+        grid.querySelectorAll('.challenge-card').forEach(card =>
+            card.addEventListener('click', () => openModal((card as HTMLElement).dataset.id!))
+        );
+    }
+
+    // ── Modal ──────────────────────────────────────────────────────────────────
+    const backdrop   = document.getElementById('modal-backdrop')!;
+    const closeBtn   = document.getElementById('modal-close')!;
+    const submitBtn  = document.getElementById('submit-btn')!;
+    const flagInput  = document.getElementById('flag-input') as HTMLInputElement;
+    const submitMsg  = document.getElementById('submit-msg')!;
+    const submitArea = document.getElementById('submit-area')!;
+    const solvedBanner = document.getElementById('solved-banner')!;
+
+    let currentChallengeId = '';
+
+    async function openModal(id: string) {
+        currentChallengeId = id;
+        submitMsg.style.display = 'none';
+        flagInput.value = '';
+
+        // Reset solved state
+        submitArea.style.display = '';
+        solvedBanner.style.display = 'none';
+
+        backdrop.style.display = 'flex';
+
+        try {
+            const detail: ChallengeDetail = await challenges.get(id);
+
+            document.getElementById('modal-title')!.textContent    = detail.title;
+            document.getElementById('modal-category')!.textContent = detail.category;
+            document.getElementById('modal-points')!.textContent   = `${detail.points} points`;
+            document.getElementById('modal-description')!.innerHTML = detail.description;
+
+            const hintEl = document.getElementById('modal-hint')!;
+            if (detail.hint) {
+                hintEl.textContent   = `Hint: ${detail.hint}`;
+                hintEl.style.display = '';
+            } else {
+                hintEl.style.display = 'none';
+            }
+
+            if (detail.solved_by_me) {
+                submitArea.style.display   = 'none';
+                solvedBanner.style.display = '';
+                document.getElementById('solved-text')!.textContent = 'Already solved!';
+            }
+        } catch {
+            document.getElementById('modal-title')!.textContent = 'Error loading challenge';
+        }
+    }
+
+    closeBtn.addEventListener('click', () => backdrop.style.display = 'none');
+    backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) backdrop.style.display = 'none';
+    });
+
+    submitBtn.addEventListener('click', async () => {
+        const flag = flagInput.value.trim();
+        if (!flag) return;
+
+        submitBtn.textContent   = 'Submitting...';
+        submitMsg.style.display = 'none';
+
+        try {
+            const res = await challenges.submit(currentChallengeId, flag);
+            if (res.correct) {
+                submitArea.style.display   = 'none';
+                solvedBanner.style.display = '';
+                const fb = res.first_blood ? '🩸 First blood! ' : '';
+                document.getElementById('solved-text')!.textContent =
+                    `${fb}+${res.points_earned} pts`;
+                // Mark solved in local list
+                const ch = allChallenges.find(c => c.id === currentChallengeId);
+                if (ch) ch.solved_by_me = true;
+                renderGrid();
+            } else {
+                submitMsg.textContent   = 'Wrong flag.';
+                submitMsg.className     = 'msg-error';
+                submitMsg.style.display = '';
+            }
+        } catch (err: any) {
+            submitMsg.textContent   = err.message ?? 'Submission failed.';
+            submitMsg.className     = 'msg-error';
+            submitMsg.style.display = '';
+        } finally {
+            submitBtn.textContent = 'Submit';
+        }
+    });
+
+    // Submit on Enter key in flag input
+    flagInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitBtn.click();
+    });
+
+    load();
+</script>
+
+<style>
+    .category-tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .tab-btn {
+        background: none; border: 1px solid var(--border); color: var(--text-muted);
+        padding: 0.3em 0.9em; border-radius: 4px; cursor: pointer;
+        font-family: inherit; font-size: 0.85em; font-weight: 700;
+        transition: all 0.15s;
+    }
+    .tab-btn:hover, .tab-btn.active {
+        border-color: var(--accent); color: var(--accent);
+    }
+
+    .challenge-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    .challenge-card {
+        background: var(--bg-card); border: 1px solid var(--border);
+        border-radius: 6px; padding: 1rem;
+        display: flex; flex-direction: column; gap: 0.3rem;
+        cursor: pointer; text-align: left; font-family: inherit;
+        transition: border-color 0.15s;
+        position: relative;
+    }
+    .challenge-card:hover { border-color: var(--accent); }
+    .challenge-card.solved { border-color: #3fb950; opacity: 0.7; }
+
+    .card-category { font-size: 0.75em; color: var(--accent); text-transform: uppercase; font-weight: 700; }
+    .card-title    { color: var(--text-heading); font-weight: 700; font-size: 1em; }
+    .card-points   { color: var(--text-muted); font-size: 0.85em; }
+    .card-solved   { position: absolute; top: 0.5rem; right: 0.75rem; color: #3fb950; font-weight: 700; }
+
+    .loading { color: var(--text-muted); }
+
+    /* Modal */
+    .modal-backdrop {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 2000; padding: 1rem;
+    }
+    .modal {
+        max-width: 560px; width: 100%; max-height: 90vh;
+        overflow-y: auto; position: relative;
+    }
+    .modal-close {
+        position: absolute; top: 0.75rem; right: 0.75rem;
+        background: none; border: none; color: var(--text-muted);
+        cursor: pointer; font-size: 1.1em; line-height: 1;
+        padding: 0.2em 0.4em; border-radius: 4px;
+    }
+    .modal-close:hover { color: var(--text-heading); }
+    .modal h2 { margin-top: 0; padding-right: 2rem; }
+    .modal-meta { color: var(--text-muted); font-size: 0.9em; margin: 0.1em 0; }
+    .modal-desc { margin-top: 1rem; line-height: 1.7; }
+
+    .solved-banner {
+        margin-top: 1rem; padding: 0.75rem;
+        background: rgba(63, 185, 80, 0.1);
+        border: 1px solid #3fb950;
+        border-radius: 4px; color: #3fb950;
+        font-weight: 700; text-align: center;
+    }
+</style>

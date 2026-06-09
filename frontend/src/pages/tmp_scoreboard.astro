@@ -1,0 +1,106 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Scoreboard">
+    <h1>Scoreboard</h1>
+
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="users">Players</button>
+        <button class="tab-btn"        data-tab="teams">Teams</button>
+    </div>
+
+    <div id="tab-users">
+        <table id="user-table" class="score-table">
+            <thead><tr><th>#</th><th>Player</th><th>Solves</th><th>Score</th><th>Last solve</th></tr></thead>
+            <tbody id="user-tbody"><tr><td colspan="5" class="loading">Loading...</td></tr></tbody>
+        </table>
+    </div>
+
+    <div id="tab-teams" style="display:none">
+        <table id="team-table" class="score-table">
+            <thead><tr><th>#</th><th>Team</th><th>Solves</th><th>Score</th><th>Last solve</th></tr></thead>
+            <tbody id="team-tbody"><tr><td colspan="5" class="loading">Loading...</td></tr></tbody>
+        </table>
+    </div>
+</Layout>
+
+<script>
+    import { scoreboard, currentUser } from '../lib/api';
+
+    if (!currentUser()) window.location.href = '/login';
+
+    // ── Tab switching ──────────────────────────────────────────────────────────
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tab = (btn as HTMLElement).dataset.tab!;
+            document.getElementById('tab-users')!.style.display = tab === 'users' ? '' : 'none';
+            document.getElementById('tab-teams')!.style.display = tab === 'teams' ? '' : 'none';
+        });
+    });
+
+    function fmtDate(iso: string | null): string {
+        if (!iso) return '—';
+        return new Date(iso).toLocaleString();
+    }
+
+    // ── Load both tables in parallel ───────────────────────────────────────────
+    // Promise.all fires both requests simultaneously and waits for both.
+    const [users, teams] = await Promise.all([
+        scoreboard.users().catch(() => []),
+        scoreboard.teams().catch(() => []),
+    ]);
+
+    const me = currentUser();
+
+    document.getElementById('user-tbody')!.innerHTML = users.map(u => `
+        <tr class="${me?.sub === u.id ? 'highlight' : ''}">
+            <td class="rank">${u.rank}</td>
+            <td class="name">${u.username}</td>
+            <td>${u.solve_count}</td>
+            <td class="score">${u.score}</td>
+            <td class="date">${fmtDate(u.last_solve_at)}</td>
+        </tr>
+    `).join('') || '<tr><td colspan="5" class="loading">No solves yet.</td></tr>';
+
+    document.getElementById('team-tbody')!.innerHTML = teams.map(t => `
+        <tr>
+            <td class="rank">${t.rank}</td>
+            <td class="name">${t.name}</td>
+            <td>${t.solve_count}</td>
+            <td class="score">${t.score}</td>
+            <td class="date">${fmtDate(t.last_solve_at)}</td>
+        </tr>
+    `).join('') || '<tr><td colspan="5" class="loading">No teams yet.</td></tr>';
+</script>
+
+<style>
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .tab-btn {
+        background: none; border: 1px solid var(--border); color: var(--text-muted);
+        padding: 0.4em 1.1em; border-radius: 4px; cursor: pointer;
+        font-family: inherit; font-weight: 700; font-size: 0.9em; transition: all 0.15s;
+    }
+    .tab-btn.active, .tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .score-table { width: 100%; border-collapse: collapse; }
+    .score-table th {
+        text-align: left; padding: 0.5rem 0.75rem;
+        border-bottom: 2px solid var(--accent);
+        color: var(--text-muted); font-size: 0.85em; text-transform: uppercase;
+    }
+    .score-table td {
+        padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.95em;
+    }
+    .score-table tr:hover td { background: var(--bg-card); }
+    .score-table tr.highlight td { background: rgba(255,75,75,0.07); }
+
+    .rank  { color: var(--text-muted); width: 3rem; }
+    .name  { color: var(--text-heading); font-weight: 700; }
+    .score { color: var(--accent); font-weight: 700; }
+    .date  { color: var(--text-muted); font-size: 0.85em; }
+    .loading { color: var(--text-muted); text-align: center; }
+</style>

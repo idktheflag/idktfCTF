@@ -1,0 +1,43 @@
+---
+// index.astro — landing page. Redirects logged-in users to /challenges.
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Home">
+    <div class="hero">
+        <h1>idktfCTF</h1>
+        <p class="tagline">custom CTF infrastructure by <a href="https://idktheflag.sh">idktheflag</a></p>
+        <div class="hero-actions">
+            <a href="/challenges" class="btn btn-primary">View Challenges</a>
+            <a href="/register"   class="btn btn-ghost"  >Register</a>
+        </div>
+    </div>
+</Layout>
+
+<script>
+    // If already logged in, skip the landing page.
+    import { currentUser } from '../lib/api';
+    if (currentUser()) window.location.href = '/challenges';
+</script>
+
+<style>
+    .hero {
+        text-align: center;
+        padding: 4rem 0 2rem;
+    }
+    .hero h1 {
+        font-size: 3rem;
+        margin-bottom: 0.25em;
+        border-bottom: 2px solid var(--accent);
+        display: inline-block;
+        padding-bottom: 0.2em;
+    }
+    .tagline {
+        color: var(--text-muted);
+        margin-bottom: 2rem;
+    }
+    .hero-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+    }
+</style>

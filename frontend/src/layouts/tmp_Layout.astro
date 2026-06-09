@@ -1,0 +1,154 @@
+---
+// Layout.astro — root layout for every page.
+// Copy fonts from ~/idktheflag/Website/public/fonts/ into this project's
+// public/fonts/ directory (atkinson-regular.woff and atkinson-bold.woff).
+import Header from '../components/Header.astro';
+const { title = "idktfCTF" } = Astro.props;
+---
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="preload" href="/fonts/atkinson-regular.woff" as="font" type="font/woff" crossorigin />
+        <link rel="preload" href="/fonts/atkinson-bold.woff" as="font" type="font/woff" crossorigin />
+        <meta name="generator" content={Astro.generator} />
+        <title>{title} — idktfCTF</title>
+    </head>
+    <body>
+        <Header />
+        <main class="content-wrapper">
+            <slot />
+        </main>
+    </body>
+</html>
+
+<style is:global>
+    @font-face {
+        font-family: "Atkinson";
+        src: url("/fonts/atkinson-regular.woff") format("woff");
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+    }
+    @font-face {
+        font-family: "Atkinson";
+        src: url("/fonts/atkinson-bold.woff") format("woff");
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+    }
+
+    :root {
+        --bg-color:      #0d1117;
+        --bg-card:       #161b22;
+        --border:        #30363d;
+        --text-main:     #c9d1d9;
+        --text-muted:    #8b949e;
+        --text-heading:  #ffffff;
+        --accent:        #ff4b4b;
+        --accent-hover:  #ff7676;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+        font-family: "Atkinson", "Courier New", monospace;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        margin: 0;
+        padding: 0;
+        line-height: 1.6;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        color: var(--text-heading);
+        margin-top: 1.5em;
+        margin-bottom: 0.5em;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+    .content-wrapper {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 2rem 1.5rem;
+    }
+
+    /* Shared card style — dark inset box with border */
+    .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 1.25rem;
+    }
+
+    /* Accent left-border callout */
+    .callout {
+        border-left: 3px solid var(--accent);
+        padding-left: 1rem;
+        color: var(--text-muted);
+    }
+
+    /* Buttons */
+    .btn {
+        display: inline-block;
+        padding: 0.5em 1.2em;
+        border-radius: 4px;
+        font-family: inherit;
+        font-weight: 700;
+        font-size: 0.95em;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+        border: none;
+    }
+    .btn-primary {
+        background: var(--accent);
+        color: #fff;
+    }
+    .btn-primary:hover { background: var(--accent-hover); color: #fff; text-decoration: none; }
+
+    .btn-ghost {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-heading);
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+
+    /* Form elements */
+    input, textarea, select {
+        font-family: inherit;
+        background: var(--bg-color);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text-main);
+        padding: 0.5em 0.75em;
+        font-size: 1em;
+        width: 100%;
+        transition: border-color 0.15s;
+    }
+    input:focus, textarea:focus, select:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+    label {
+        display: block;
+        color: var(--text-heading);
+        font-weight: 700;
+        margin-bottom: 0.3em;
+        font-size: 0.9em;
+    }
+    .field { margin-bottom: 1rem; }
+
+    /* Error/success messages */
+    .msg-error   { color: var(--accent); font-size: 0.9em; }
+    .msg-success { color: #3fb950;       font-size: 0.9em; }
+
+    .pixelated { image-rendering: pixelated; }
+    .sr-only {
+        position: absolute; width: 1px; height: 1px;
+        padding: 0; margin: -1px; overflow: hidden;
+        clip: rect(0,0,0,0); white-space: nowrap; border-width: 0;
+    }
+</style>

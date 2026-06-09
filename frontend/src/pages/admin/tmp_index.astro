@@ -1,0 +1,233 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Admin">
+    <h1>Admin Panel</h1>
+
+    <div class="admin-tabs">
+        <button class="tab-btn active" data-tab="challenges">Challenges</button>
+        <button class="tab-btn"        data-tab="users">Users</button>
+    </div>
+
+    <!-- ── Challenges tab ───────────────────────────────────────────────────── -->
+    <div id="tab-challenges">
+        <div class="tab-header">
+            <h2>Challenges</h2>
+            <button id="new-challenge-btn" class="btn btn-primary">+ New</button>
+        </div>
+
+        <table class="admin-table">
+            <thead><tr><th>Title</th><th>Cat</th><th>Pts</th><th>Visible</th><th>Actions</th></tr></thead>
+            <tbody id="challenges-tbody">
+                <tr><td colspan="5" class="loading">Loading...</td></tr>
+            </tbody>
+        </table>
+
+        <!-- Inline create/edit form -->
+        <div id="challenge-form-wrap" class="card form-wrap" style="display:none">
+            <h3 id="form-title">New Challenge</h3>
+            <div class="form-grid">
+                <div class="field"><label>Title</label>       <input id="f-title"       type="text"     /></div>
+                <div class="field"><label>Category</label>    <input id="f-category"    type="text"     /></div>
+                <div class="field"><label>Points</label>      <input id="f-points"      type="number"   /></div>
+                <div class="field"><label>Flag</label>        <input id="f-flag"        type="text"     /></div>
+                <div class="field"><label>Author</label>      <input id="f-author"      type="text"     /></div>
+                <div class="field"><label>Hint</label>        <input id="f-hint"        type="text"     /></div>
+                <div class="field full"><label>Description</label>
+                    <textarea id="f-description" rows="4"></textarea>
+                </div>
+            </div>
+            <p id="form-error" class="msg-error" style="display:none"></p>
+            <div class="form-actions">
+                <button id="form-cancel" class="btn btn-ghost">Cancel</button>
+                <button id="form-save"   class="btn btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Users tab ────────────────────────────────────────────────────────── -->
+    <div id="tab-users" style="display:none">
+        <h2>Users</h2>
+        <table class="admin-table">
+            <thead><tr><th>Username</th><th>Email</th><th>Admin</th><th>CTFtime</th><th>Joined</th></tr></thead>
+            <tbody id="users-tbody">
+                <tr><td colspan="5" class="loading">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</Layout>
+
+<script>
+    import { admin, currentUser, ApiError } from '../../lib/api';
+    import type { AdminChallenge, CreateChallengeRequest } from '../../lib/api';
+
+    // Admin-only page.
+    const me = currentUser();
+    if (!me) window.location.href = '/login';
+    if (!me?.is_admin) window.location.href = '/challenges';
+
+    // ── Tab switching ──────────────────────────────────────────────────────────
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tab = (btn as HTMLElement).dataset.tab!;
+            document.getElementById('tab-challenges')!.style.display = tab === 'challenges' ? '' : 'none';
+            document.getElementById('tab-users')!.style.display       = tab === 'users'      ? '' : 'none';
+            if (tab === 'users') loadUsers();
+        });
+    });
+
+    // ── Challenges ─────────────────────────────────────────────────────────────
+    let challengeList: AdminChallenge[] = [];
+    let editingId: string | null = null;
+
+    async function loadChallenges() {
+        challengeList = await admin.listChallenges();
+        const tbody = document.getElementById('challenges-tbody')!;
+        tbody.innerHTML = challengeList.map(c => `
+            <tr>
+                <td class="name">${c.title}</td>
+                <td>${c.category}</td>
+                <td>${c.points}</td>
+                <td>
+                    <button class="toggle-btn ${c.is_visible ? 'vis' : 'hid'}"
+                            data-id="${c.id}">
+                        ${c.is_visible ? 'Visible' : 'Hidden'}
+                    </button>
+                </td>
+                <td class="actions">
+                    <button class="btn btn-ghost btn-sm edit-btn"   data-id="${c.id}">Edit</button>
+                    <button class="btn btn-ghost btn-sm delete-btn" data-id="${c.id}">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+
+        tbody.querySelectorAll('.toggle-btn').forEach(btn =>
+            btn.addEventListener('click', async () => {
+                await admin.toggleChallenge((btn as HTMLElement).dataset.id!);
+                loadChallenges();
+            })
+        );
+        tbody.querySelectorAll('.edit-btn').forEach(btn =>
+            btn.addEventListener('click', () => openForm((btn as HTMLElement).dataset.id!))
+        );
+        tbody.querySelectorAll('.delete-btn').forEach(btn =>
+            btn.addEventListener('click', async () => {
+                if (!confirm('Delete this challenge?')) return;
+                await admin.deleteChallenge((btn as HTMLElement).dataset.id!);
+                loadChallenges();
+            })
+        );
+    }
+
+    function openForm(id?: string) {
+        const wrap = document.getElementById('challenge-form-wrap')!;
+        document.getElementById('form-error')!.style.display = 'none';
+        editingId = id ?? null;
+        document.getElementById('form-title')!.textContent = id ? 'Edit Challenge' : 'New Challenge';
+
+        const c = id ? challengeList.find(x => x.id === id) : null;
+        (document.getElementById('f-title')       as HTMLInputElement).value    = c?.title       ?? '';
+        (document.getElementById('f-category')    as HTMLInputElement).value    = c?.category    ?? '';
+        (document.getElementById('f-points')      as HTMLInputElement).value    = String(c?.points ?? '');
+        (document.getElementById('f-flag')        as HTMLInputElement).value    = c?.flag        ?? '';
+        (document.getElementById('f-author')      as HTMLInputElement).value    = c?.author      ?? '';
+        (document.getElementById('f-hint')        as HTMLInputElement).value    = c?.hint        ?? '';
+        (document.getElementById('f-description') as HTMLTextAreaElement).value = c?.description ?? '';
+
+        wrap.style.display = '';
+        wrap.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    document.getElementById('new-challenge-btn')!.addEventListener('click', () => openForm());
+    document.getElementById('form-cancel')!.addEventListener('click', () => {
+        document.getElementById('challenge-form-wrap')!.style.display = 'none';
+    });
+
+    document.getElementById('form-save')!.addEventListener('click', async () => {
+        const body: CreateChallengeRequest = {
+            title:       (document.getElementById('f-title')       as HTMLInputElement).value,
+            description: (document.getElementById('f-description') as HTMLTextAreaElement).value,
+            category:    (document.getElementById('f-category')    as HTMLInputElement).value,
+            points:      Number((document.getElementById('f-points') as HTMLInputElement).value),
+            flag:        (document.getElementById('f-flag')        as HTMLInputElement).value,
+            hint:        (document.getElementById('f-hint')        as HTMLInputElement).value || undefined,
+            author:      (document.getElementById('f-author')      as HTMLInputElement).value || undefined,
+        };
+
+        const errEl = document.getElementById('form-error')!;
+        try {
+            if (editingId) {
+                await admin.updateChallenge(editingId, body);
+            } else {
+                await admin.createChallenge(body);
+            }
+            document.getElementById('challenge-form-wrap')!.style.display = 'none';
+            loadChallenges();
+        } catch (err: any) {
+            errEl.textContent = err.message;
+            errEl.style.display = '';
+        }
+    });
+
+    // ── Users ──────────────────────────────────────────────────────────────────
+    async function loadUsers() {
+        const userList = await admin.listUsers();
+        document.getElementById('users-tbody')!.innerHTML = userList.map(u => `
+            <tr>
+                <td class="name">${u.username}</td>
+                <td>${u.email ?? '—'}</td>
+                <td>${u.is_admin ? '<span class="badge-admin">Admin</span>' : ''}</td>
+                <td>${u.ctftime_id ?? '—'}</td>
+                <td class="date">${new Date(u.created_at).toLocaleDateString()}</td>
+            </tr>
+        `).join('');
+    }
+
+    loadChallenges();
+</script>
+
+<style>
+    .admin-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .tab-btn {
+        background: none; border: 1px solid var(--border); color: var(--text-muted);
+        padding: 0.4em 1.1em; border-radius: 4px; cursor: pointer;
+        font-family: inherit; font-weight: 700; font-size: 0.9em; transition: all 0.15s;
+    }
+    .tab-btn.active, .tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .tab-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .tab-header h2 { margin: 0; }
+
+    .admin-table { width: 100%; border-collapse: collapse; }
+    .admin-table th {
+        text-align: left; padding: 0.5rem 0.75rem;
+        border-bottom: 2px solid var(--accent);
+        color: var(--text-muted); font-size: 0.8em; text-transform: uppercase;
+    }
+    .admin-table td { padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.9em; }
+    .admin-table tr:hover td { background: var(--bg-card); }
+
+    .name { color: var(--text-heading); font-weight: 700; }
+    .date { color: var(--text-muted); font-size: 0.85em; }
+    .loading { color: var(--text-muted); text-align: center; }
+    .actions { display: flex; gap: 0.4rem; }
+    .btn-sm { padding: 0.25em 0.7em; font-size: 0.8em; }
+
+    .toggle-btn {
+        background: none; border: 1px solid; border-radius: 4px; padding: 0.2em 0.6em;
+        cursor: pointer; font-family: inherit; font-size: 0.8em; font-weight: 700;
+    }
+    .toggle-btn.vis { border-color: #3fb950; color: #3fb950; }
+    .toggle-btn.hid { border-color: var(--border); color: var(--text-muted); }
+
+    .form-wrap { margin-top: 1.5rem; }
+    .form-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+    }
+    .form-grid .full { grid-column: 1 / -1; }
+    .form-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem; }
+
+    .badge-admin { background: rgba(255,75,75,0.15); color: var(--accent); padding: 0.15em 0.5em; border-radius: 4px; font-size: 0.8em; font-weight: 700; }
+</style>

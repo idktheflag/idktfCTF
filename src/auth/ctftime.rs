@@ -1,20 +1,3 @@
-// auth/ctftime.rs — CTFtime OAuth2 login and account linking.
-//
-// CTFtime is team-centric: a CTFtime "account" represents a team, not an
-// individual. One CTFtime login = one team. Multiple members of the same
-// real-world team would share one local account created via CTFtime OAuth.
-//
-// Two use-cases handled here:
-//   1. New login  — no JWT in header → create or find account, return JWT
-//   2. Linking    — valid JWT in header → attach ctftime_id to existing account
-//
-// OAuth2 authorization code flow recap:
-//   Client → GET /auth/ctftime          (we redirect to CTFtime)
-//   CTFtime → GET /auth/ctftime/callback?code=...&state=...
-//   We POST code to CTFtime token endpoint → get access_token
-//   We GET ctftime.org/user with access_token → get profile
-//   We upsert local user/team, issue our JWT
-
 use std::sync::Arc;
 
 use axum::{
@@ -36,24 +19,16 @@ use crate::{
 };
 
 type HmacSha256 = Hmac<Sha256>;
-
-// ── CTFtime API response types ────────────────────────────────────────────────
-// These match what oauth.ctftime.org/user returns.
-// If CTFtime ever changes their response shape, update these structs.
-
 #[derive(Deserialize)]
 struct CtftimeProfile {
-    // CTFtime team/user ID — this is what we store as ctftime_id
-    id:   i32,
-    // Team name — used as the local username for CTFtime accounts
+    id: i32,
     name: String,
-    // Team info (present when "team" scope was requested)
-    team: Option<CtftimeTeamInfo>,
+    team: Option<CtftimeTeaminfo>,
 }
 
 #[derive(Deserialize)]
 struct CtftimeTeamInfo {
-    id:   i32,
+    id: i32,
     name: String,
 }
 
@@ -62,29 +37,19 @@ struct TokenResponse {
     access_token: String,
 }
 
-// ── Response type ─────────────────────────────────────────────────────────────
-
 #[derive(Serialize)]
 pub struct AuthResponse {
     pub token: String,
 }
 
-// ── Query params ──────────────────────────────────────────────────────────────
-
 #[derive(Deserialize)]
 pub struct CallbackQuery {
-    pub code:  String,
+    pub code: String,
     pub state: String,
 }
 
-// ── GET /auth/ctftime ─────────────────────────────────────────────────────────
-//
-// Builds the CTFtime authorization URL and redirects the user's browser there.
-// If the user is already logged in (JWT in header), we embed their user ID in
-// the state param so the callback knows to link rather than create.
-//
-// Option<AuthUser> is Axum's "optional extractor" pattern: the handler runs
-// whether or not a valid JWT is present. None = anonymous, Some = logged in.
+// get /auth/ctftime
+// builds the ctftime authorization url
 pub async fn redirect(
     State(state): State<Arc<AppState>>,
     maybe_auth: Option<AuthUser>,
@@ -117,24 +82,17 @@ pub async fn redirect(
 }
 
 // ── GET /auth/ctftime/callback ────────────────────────────────────────────────
+// Note: returns Redirect, not JSON — the browser follows this redirect to the
+// frontend's /auth/callback?token=... page, which stores the JWT and continues.
 pub async fn callback(
     State(state): State<Arc<AppState>>,
     Query(params): Query<CallbackQuery>,
-) -> Result<Json<AuthResponse>, AppError> {
+) -> Result<Redirect, AppError> {
     let config = state.ctftime.as_ref()
         .ok_or_else(|| AppError::BadRequest("CTFtime OAuth is not configured".into()))?;
-
-    // ── Step 1: verify state (CSRF check) ─────────────────────────────────────
-    // Returns the user_id we embedded at redirect time, if this is a link flow.
     let linking_user_id = verify_state(&state.jwt_secret, &params.state)?;
-
-    // ── Step 2: exchange authorization code for access token ──────────────────
-    // The code is single-use and short-lived (~60s). We POST it to CTFtime's
-    // token endpoint along with our client credentials.
     let token_res = state.http
         .post("https://oauth.ctftime.org/token")
-        // send_form encodes the body as application/x-www-form-urlencoded,
-        // which is what OAuth2 token endpoints expect (not JSON).
         .form(&[
             ("grant_type",    "authorization_code"),
             ("code",          params.code.as_str()),
@@ -148,8 +106,6 @@ pub async fn callback(
         .json::<TokenResponse>()
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("CTFtime token parse failed: {e}")))?;
-
-    // ── Step 3: fetch CTFtime profile ──────────────────────────────────────────
     let profile = state.http
         .get("https://oauth.ctftime.org/user")
         .bearer_auth(&token_res.access_token)
@@ -160,11 +116,6 @@ pub async fn callback(
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("CTFtime user parse failed: {e}")))?;
 
-    // ── Step 4: upsert team if CTFtime team data is present ───────────────────
-    // ON CONFLICT (ctftime_id) DO UPDATE means:
-    //   - if no row with this ctftime_id exists → INSERT
-    //   - if one does → UPDATE name (in case they renamed)
-    // Either way, we get back the local team UUID.
     let team_id: Option<Uuid> = if let Some(ref team) = profile.team {
         let id: Uuid = sqlx::query_scalar(
             "INSERT INTO teams (name, ctftime_id)
@@ -181,13 +132,7 @@ pub async fn callback(
         None
     };
 
-    // ── Step 5: link or upsert user ───────────────────────────────────────────
     let (user_id, is_admin) = if let Some(existing_id) = linking_user_id {
-        // Linking flow: the user is already logged in and wants to attach
-        // their CTFtime identity to their existing local account.
-        //
-        // ON CONFLICT (ctftime_id) DO NOTHING guards against someone trying
-        // to link a CTFtime account that another local account already owns.
         let rows = sqlx::query(
             "UPDATE users SET ctftime_id = $1, team_id = COALESCE($2, team_id)
              WHERE id = $3 AND ctftime_id IS NULL",
@@ -215,12 +160,6 @@ pub async fn callback(
 
         (existing_id, is_admin)
     } else {
-        // Login/register flow: upsert by ctftime_id.
-        // ON CONFLICT (ctftime_id) DO UPDATE lets returning users log back in
-        // while also updating their name if they renamed on CTFtime.
-        //
-        // username conflict: if someone already registered locally with the
-        // same username, we append their ctftime_id to disambiguate.
         let username = profile.name.clone();
         let result = sqlx::query_as::<_, (Uuid, bool)>(
             "INSERT INTO users (username, ctftime_id, team_id)
@@ -259,23 +198,17 @@ pub async fn callback(
         }
     };
 
-    // ── Step 6: issue our JWT ─────────────────────────────────────────────────
+    // ── Step 6: issue our JWT and redirect to the frontend ───────────────────
     let final_username: String = sqlx::query_scalar("SELECT username FROM users WHERE id = $1")
         .bind(user_id)
         .fetch_one(&state.pool)
         .await?;
 
     let token = jwt::create_token(&state.jwt_secret, user_id, &final_username, is_admin)?;
-    Ok(Json(AuthResponse { token }))
+    let redirect_url = format!("{}/auth/callback?token={}", state.frontend_url, token);
+    Ok(Redirect::to(&redirect_url))
 }
 
-// ── CSRF state helpers ────────────────────────────────────────────────────────
-
-// Generates a signed state token: base64url(data) + "." + base64url(hmac)
-// where data = "{user_id_or_empty}|{unix_timestamp}".
-//
-// Embedding a timestamp lets us expire state tokens after 10 minutes,
-// preventing replay attacks with old intercepted state values.
 fn generate_state(jwt_secret: &str, linking_user_id: Option<Uuid>) -> String {
     let timestamp = chrono::Utc::now().timestamp();
     let user_part = linking_user_id.map(|id| id.to_string()).unwrap_or_default();
@@ -288,14 +221,11 @@ fn generate_state(jwt_secret: &str, linking_user_id: Option<Uuid>) -> String {
     format!("{data_b64}.{sig_b64}")
 }
 
-// Verifies the state token and returns the embedded linking_user_id (if any).
 fn verify_state(jwt_secret: &str, state: &str) -> Result<Option<Uuid>, AppError> {
     let parts: Vec<&str> = state.splitn(2, '.').collect();
     if parts.len() != 2 {
         return Err(AppError::BadRequest("invalid OAuth state".into()));
     }
-
-    // Constant-time signature verification — same reasoning as in jwt.rs.
     let expected = hmac_sign(jwt_secret.as_bytes(), parts[0].as_bytes());
     let provided = URL_SAFE_NO_PAD
         .decode(parts[1])

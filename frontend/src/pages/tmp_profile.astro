@@ -1,0 +1,63 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Profile">
+    <div id="profile-wrap">
+        <p class="loading">Loading...</p>
+    </div>
+</Layout>
+
+<script>
+    import { users, currentUser, auth } from '../lib/api';
+
+    if (!currentUser()) window.location.href = '/login';
+
+    const wrap = document.getElementById('profile-wrap')!;
+
+    try {
+        const me = await users.me();
+
+        wrap.innerHTML = `
+            <h1>${me.username}</h1>
+            <div class="card profile-card">
+                <div class="field-row">
+                    <span class="field-label">Email</span>
+                    <span>${me.email ?? '—'}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">Role</span>
+                    <span>${me.is_admin ? '<span class="badge-admin">Admin</span>' : 'Competitor'}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">CTFtime</span>
+                    <span id="ctftime-status">
+                        ${me.ctftime_id
+                            ? `<span class="badge-linked">Linked (#${me.ctftime_id})</span>`
+                            : `<a href="${auth.ctftimeUrl()}" class="btn btn-ghost btn-sm">Link CTFtime account</a>`
+                        }
+                    </span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">Member since</span>
+                    <span>${new Date(me.created_at).toLocaleDateString()}</span>
+                </div>
+            </div>
+        `;
+    } catch {
+        wrap.innerHTML = '<p class="msg-error">Failed to load profile.</p>';
+    }
+</script>
+
+<style>
+    .profile-card { max-width: 480px; }
+    .field-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0.65rem 0; border-bottom: 1px solid var(--border);
+    }
+    .field-row:last-child { border-bottom: none; }
+    .field-label { color: var(--text-muted); font-size: 0.9em; font-weight: 700; }
+    .badge-admin  { background: rgba(255,75,75,0.15); color: var(--accent); padding: 0.2em 0.6em; border-radius: 4px; font-size: 0.85em; font-weight: 700; }
+    .badge-linked { background: rgba(63,185,80,0.1); color: #3fb950; padding: 0.2em 0.6em; border-radius: 4px; font-size: 0.85em; font-weight: 700; }
+    .btn-sm { padding: 0.3em 0.8em; font-size: 0.85em; }
+    .loading { color: var(--text-muted); }
+</style>

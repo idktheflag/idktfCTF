@@ -1,0 +1,28 @@
+---
+// auth/callback.astro — receives the JWT from the CTFtime OAuth redirect.
+// The backend redirects here as: /auth/callback?token=<jwt>
+// We store it and forward to /challenges.
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Logging in...">
+    <p class="msg">Completing login...</p>
+</Layout>
+
+<script>
+    import { token } from '../../lib/api';
+
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get('token');
+
+    if (t) {
+        token.set(t);
+        window.location.href = '/challenges';
+    } else {
+        // No token — something went wrong on the backend side.
+        window.location.href = '/login?error=oauth_failed';
+    }
+</script>
+
+<style>
+    .msg { color: var(--text-muted); margin-top: 4rem; text-align: center; }
+</style>

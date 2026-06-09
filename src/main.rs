@@ -42,11 +42,15 @@ async fn main() {
         }
     };
 
+    let frontend_url = std::env::var("FRONTEND_URL")
+        .unwrap_or_else(|_| "http://localhost:4321".to_string());
+
     let state = Arc::new(AppState {
         pool,
         jwt_secret,
         http: reqwest::Client::new(),
         ctftime,
+        frontend_url,
     });
 
     let app = Router::new()

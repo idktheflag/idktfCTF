@@ -10,7 +10,10 @@ pub struct AppState {
     pub http:       reqwest::Client,
     // None if CTFTIME_CLIENT_ID is not set — disables CTFtime login
     // gracefully so the server works in local dev without OAuth config.
-    pub ctftime:    Option<CtftimeConfig>,
+    pub ctftime:      Option<CtftimeConfig>,
+    // After CTFtime OAuth, the backend redirects the browser here with ?token=
+    // e.g. "https://ctf.idktheflag.sh"
+    pub frontend_url: String,
 }
 
 // CTFtime OAuth2 credentials. Obtained from CTFtime's event management

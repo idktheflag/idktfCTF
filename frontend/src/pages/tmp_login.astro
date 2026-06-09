@@ -1,0 +1,89 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Login">
+    <div class="auth-wrap">
+        <h1>Login</h1>
+
+        <form id="login-form" class="card">
+            <div class="field">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required />
+            </div>
+            <div class="field">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required />
+            </div>
+            <p id="error-msg" class="msg-error" style="display:none"></p>
+            <button type="submit" class="btn btn-primary" style="width:100%">Login</button>
+        </form>
+
+        <!-- CTFtime OAuth is a full-page redirect, not a fetch call -->
+        <div class="divider"><span>or</span></div>
+
+        <a id="ctftime-btn" href="#" class="btn btn-ghost ctftime-btn">
+            Login with CTFtime
+        </a>
+
+        <p class="footer-link">
+            No account? <a href="/register">Register</a>
+        </p>
+    </div>
+</Layout>
+
+<script>
+    import { auth, token, currentUser } from '../lib/api';
+
+    // Already logged in → skip.
+    if (currentUser()) window.location.href = '/challenges';
+
+    // Point the CTFtime button at the backend OAuth redirect endpoint.
+    const ctftimeBtn = document.getElementById('ctftime-btn') as HTMLAnchorElement;
+    ctftimeBtn.href = auth.ctftimeUrl();
+
+    const form   = document.getElementById('login-form')   as HTMLFormElement;
+    const errMsg = document.getElementById('error-msg')!;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errMsg.style.display = 'none';
+
+        const email    = (document.getElementById('email')    as HTMLInputElement).value;
+        const password = (document.getElementById('password') as HTMLInputElement).value;
+
+        try {
+            const res = await auth.login({ email, password });
+            token.set(res.token);
+            window.location.href = '/challenges';
+        } catch (err: any) {
+            errMsg.textContent   = err.message ?? 'Login failed';
+            errMsg.style.display = 'block';
+        }
+    });
+</script>
+
+<style>
+    .auth-wrap {
+        max-width: 420px;
+        margin: 2rem auto;
+    }
+    .auth-wrap h1 { margin-top: 0; }
+    .divider {
+        text-align: center;
+        position: relative;
+        margin: 1.25rem 0;
+        color: var(--text-muted);
+    }
+    .divider::before, .divider::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        width: 42%;
+        height: 1px;
+        background: var(--border);
+    }
+    .divider::before { left: 0; }
+    .divider::after  { right: 0; }
+    .ctftime-btn { width: 100%; text-align: center; display: block; }
+    .footer-link { text-align: center; color: var(--text-muted); margin-top: 1.25rem; }
+</style>
