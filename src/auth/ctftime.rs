@@ -23,7 +23,7 @@ type HmacSha256 = Hmac<Sha256>;
 struct CtftimeProfile {
     id: i32,
     name: String,
-    team: Option<CtftimeTeaminfo>,
+    team: Option<CtftimeTeamInfo>,
 }
 
 #[derive(Deserialize)]
@@ -231,7 +231,7 @@ fn verify_state(jwt_secret: &str, state: &str) -> Result<Option<Uuid>, AppError>
         .decode(parts[1])
         .map_err(|_| AppError::BadRequest("invalid state signature encoding".into()))?;
 
-    if !expected.ct_eq(&provided).into() {
+    if !bool::from(expected.ct_eq(&provided)) {
         return Err(AppError::BadRequest("state signature mismatch".into()));
     }
 
