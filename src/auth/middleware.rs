@@ -14,7 +14,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct AuthUser {
-    pub user_iud: Uuid,
+    pub user_id: Uuid,
     pub username: String,
     pub is_admin: bool,
 }
@@ -48,7 +48,7 @@ impl FromRequestParts<Arc<AppState>> for AuthUser {
 
 //adminuser extractor
 
-impl FromRequestParts<Arc<<AppState>> for AdminUser {
+impl FromRequestParts<Arc<AppState>> for AdminUser {
     type Rejection = AppError;
     async fn from_request_parts(
         parts: &mut Parts,
