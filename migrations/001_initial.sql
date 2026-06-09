@@ -95,3 +95,4 @@ LEFT JOIN users      u ON u.team_id = t.id
 LEFT JOIN solves     s ON s.user_id = u.id
 LEFT JOIN challenges c ON c.id      = s.challenge_id
 GROUP BY t.id, t.name;
+
