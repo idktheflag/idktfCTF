@@ -8,13 +8,18 @@ axum = "0.7"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono"] }
+# sqlx: postgres driver + uuid/chrono type mappings + migrate macro + derive macros
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono", "migrate", "macros"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 bcrypt = "0.15"
-jsonwebtoken = "9"
+# DIY JWT deps — replacing the jsonwebtoken crate so we can implement it ourselves
+hmac = "0.12"          # HMAC construction: wraps any hash fn into a MAC
+sha2 = "0.10"          # SHA-256 hash function
+base64 = "0.22"        # base64url encoding for JWT sections
+subtle = "2"           # constant-time byte comparison (timing-attack defense)
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1"
 thiserror = "1"
