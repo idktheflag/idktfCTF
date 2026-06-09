@@ -1,0 +1,68 @@
+# Deployment for cloudflared — the Cloudflare tunnel client.
+#
+# How Cloudflare tunnels work:
+#   1. cloudflared (running here in the cluster) opens an outbound HTTPS
+#      connection to Cloudflare's edge servers.
+#   2. When a user visits ctf.idktheflag.sh, Cloudflare routes the request
+#      through that tunnel to cloudflared.
+#   3. cloudflared forwards it to ctf-api-svc:3000 inside the cluster.
+#
+# Benefits over a traditional ingress:
+#   - No public IP needed on the server
+#   - No firewall rules to open
+#   - Cloudflare handles DDoS mitigation and TLS termination for free
+#   - Works even if the server is behind NAT (e.g. a home network or school)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: ctf
+  labels:
+    app: cloudflared
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudflared
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+    spec:
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:latest
+          args:
+            # `tunnel run` starts the tunnel using the config file.
+            - tunnel
+            - --config
+            - /etc/cloudflared/config.yaml
+            - run
+          volumeMounts:
+            # Mount the ConfigMap (config.yaml) into the container.
+            - name: config
+              mountPath: /etc/cloudflared/config.yaml
+              subPath: config.yaml
+              readOnly: true
+            # Mount the Secret (credentials.json) into the same directory.
+            - name: credentials
+              mountPath: /etc/cloudflared/credentials.json
+              subPath: credentials.json
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              # cloudflared exposes a metrics endpoint on 2000 by default.
+              path: /ready
+              port: 2000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: config
+          configMap:
+            name: cloudflared-config
+        - name: credentials
+          secret:
+            secretName: cloudflared-credentials
+            # The Secret has one key: "credentials.json"
+            # We mount it as a file at /etc/cloudflared/credentials.json via subPath above.

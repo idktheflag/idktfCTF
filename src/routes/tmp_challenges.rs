@@ -4,7 +4,6 @@ use std::{collections::HashSet, sync::Arc};
 
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
     Json,
 };
 use chrono::{DateTime, Utc};
@@ -143,6 +142,11 @@ pub async fn submit_flag(
     Path(challenge_id): Path<Uuid>,
     Json(body): Json<SubmitRequest>,
 ) -> Result<Json<SubmitResponse>, AppError> {
+    // Rate-limit flag submissions to prevent brute-forcing.
+    // This must happen before we do any DB work, so we fail fast.
+    // See auth/ratelimit.rs for the sliding-window implementation.
+    state.rate_limiter.check(auth.user_id).await?;
+
     // Verify the challenge exists and is visible.
     let challenge = sqlx::query_as::<_, Challenge>(
         "SELECT * FROM challenges WHERE id = $1 AND is_visible = true",

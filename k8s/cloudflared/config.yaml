@@ -1,0 +1,42 @@
+# ConfigMap for cloudflared tunnel configuration.
+#
+# A ConfigMap stores non-sensitive configuration data as key-value pairs.
+# Unlike Secrets, ConfigMaps are not base64-encoded — they're plain text.
+# (Don't put passwords in ConfigMaps. Tunnel credentials go in the Secret.)
+#
+# cloudflared reads this config file to know:
+#   - which tunnel to run (by ID)
+#   - how to route incoming requests to internal services
+#
+# Prerequisites (run on your local machine first):
+#   cloudflared tunnel login
+#   cloudflared tunnel create ctf-platform
+#     → prints a tunnel ID (UUID) and creates ~/.cloudflared/<UUID>.json
+#   cloudflared tunnel route dns ctf-platform ctf.idktheflag.sh
+#     → creates the CNAME in Cloudflare DNS pointing to the tunnel
+#
+# Then populate the Secret (k8s/cloudflared/secret.yaml) with the JSON file contents.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config
+  namespace: ctf
+data:
+  config.yaml: |
+    # Replace TUNNEL_ID_HERE with the UUID from `cloudflared tunnel create`.
+    tunnel: TUNNEL_ID_HERE
+
+    # The credentials file is mounted from the Secret into the pod filesystem.
+    credentials-file: /etc/cloudflared/credentials.json
+
+    # Ingress rules: cloudflared matches requests top-to-bottom.
+    # The last rule must be a catch-all.
+    ingress:
+      # Route all traffic for your domain to the API service.
+      # "ctf-api-svc" resolves via Kubernetes DNS within the cluster.
+      # "ctf" is the namespace — DNS format: <service>.<namespace>.svc.cluster.local
+      - hostname: ctf.idktheflag.sh
+        service: http://ctf-api-svc.ctf.svc.cluster.local:3000
+
+      # Catch-all: return 404 for anything that doesn't match above.
+      - service: http_status:404

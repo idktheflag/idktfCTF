@@ -1,0 +1,26 @@
+# Service — gives the Postgres pod a stable DNS name inside the cluster.
+#
+# Pods are ephemeral: when one dies and is replaced, it gets a new IP address.
+# A Service is a stable endpoint that always routes to healthy pods matching
+# its selector. Other pods (like our API) talk to the Service DNS name, not
+# the pod IP directly.
+#
+# DNS: "ctf-postgres-svc.ctf.svc.cluster.local"
+# Shorthand within the same namespace: "ctf-postgres-svc"
+# The DATABASE_URL in secrets.yaml uses this hostname.
+#
+# ClusterIP = the service is only reachable inside the cluster. This is correct
+# for Postgres — we don't want it exposed to the internet.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ctf-postgres-svc
+  namespace: ctf
+spec:
+  type: ClusterIP
+  selector:
+    # Routes traffic to pods with this label — matches our Deployment's pod template.
+    app: ctf-postgres
+  ports:
+    - port: 5432        # the port this Service listens on (within the cluster)
+      targetPort: 5432  # the port inside the container to forward to

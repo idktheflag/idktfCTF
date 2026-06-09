@@ -1,0 +1,66 @@
+# docker-compose.yml — local development environment.
+#
+# Starts two containers:
+#   - postgres: the database (persists data in a named volume)
+#   - api:      the Rust backend (built from Dockerfile, auto-restarts)
+#
+# Usage:
+#   docker compose up --build      # first run / after Cargo.toml changes
+#   docker compose up              # subsequent runs (skips rebuild if unchanged)
+#   docker compose down            # stop and remove containers (keeps db volume)
+#   docker compose down -v         # also wipe the database volume (fresh start)
+#
+# The frontend runs separately: cd frontend && bun dev
+# (it talks to the API at http://localhost:3000 via VITE_API_URL / PUBLIC_API_URL)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    # alpine variant is smaller (~80 MB vs ~400 MB for the full image).
+    environment:
+      POSTGRES_USER:     ctf
+      POSTGRES_PASSWORD: ctf_dev_password   # fine for local dev, never use in prod
+      POSTGRES_DB:       ctf
+    ports:
+      # Expose 5432 to localhost so you can connect with psql or a GUI tool.
+      # Format: "host_port:container_port"
+      - "5432:5432"
+    volumes:
+      # Named volume: data persists across `docker compose down` / `up` cycles.
+      # Without this, the DB would be wiped every time you restart the container.
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready exits 0 when the DB accepts connections. The api service
+      # uses `depends_on: condition: service_healthy` to wait for this.
+      test: ["CMD-SHELL", "pg_isready -U ctf -d ctf"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://ctf:ctf_dev_password@postgres:5432/ctf
+      # In compose, services talk to each other by service name ("postgres"),
+      # not "localhost" — Docker creates a shared network automatically.
+      JWT_SECRET: dev_jwt_secret_change_me_in_production
+      FRONTEND_URL: http://localhost:4321
+      # CTFtime OAuth is optional — omit these in local dev unless testing OAuth.
+      # CTFTIME_CLIENT_ID: your_client_id
+      # CTFTIME_CLIENT_SECRET: your_client_secret
+      # CTFTIME_REDIRECT_URI: http://localhost:3000/auth/ctftime/callback
+      RUST_LOG: info,sqlx=warn
+      # sqlx=warn silences the per-query log lines that flood the terminal.
+    depends_on:
+      postgres:
+        condition: service_healthy
+        # Without this, the API would try to connect before Postgres is ready
+        # and crash. `service_healthy` waits for the healthcheck above to pass.
+    # Restart the API if it crashes (e.g. during development).
+    restart: on-failure
+
+volumes:
+  # Declares the named volume. Docker manages storage; it survives container restarts.
+  postgres_data:

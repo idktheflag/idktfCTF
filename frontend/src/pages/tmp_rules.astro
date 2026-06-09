@@ -1,0 +1,143 @@
+---
+// pages/rules.astro — competition rules page.
+// Static content — no API calls needed.
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Rules — idktheflag CTF">
+  <main class="rules-page">
+    <h1>Rules</h1>
+    <p class="subtitle">Read these before competing. Violations may result in disqualification.</p>
+
+    <section class="rule-section">
+      <h2>1. Fair Play</h2>
+      <ul>
+        <li>Solve challenges yourself or with your registered team. Do not share flags or solutions with other teams during the competition.</li>
+        <li>Do not attempt to attack the CTF infrastructure itself. If you find a vulnerability in the platform, report it to the organizers instead.</li>
+        <li>Do not brute-force flags. Use logic, not automation.</li>
+      </ul>
+    </section>
+
+    <section class="rule-section">
+      <h2>2. Teams</h2>
+      <ul>
+        <li>Teams can have any number of members.</li>
+        <li>You may only be on one team at a time.</li>
+        <li>Team scores are the sum of all members' individual solves.</li>
+        <li>Switching teams during the competition is allowed but your solves stay with you (not your old team).</li>
+      </ul>
+    </section>
+
+    <section class="rule-section">
+      <h2>3. Flags</h2>
+      <ul>
+        <li>All flags follow the format <code>idktheflag&#123;...&#125;</code> unless stated otherwise in the challenge.</li>
+        <li>Flag submission is case-sensitive.</li>
+        <li>Each challenge can only be solved once per user.</li>
+        <li>First blood (the first team to solve a challenge) is tracked and displayed.</li>
+      </ul>
+    </section>
+
+    <section class="rule-section">
+      <h2>4. Communication</h2>
+      <ul>
+        <li>Join the <a href="https://discord.gg/idktheflag" target="_blank" rel="noopener">idktheflag Discord</a> for announcements and support.</li>
+        <li>Challenge clarifications will be posted as announcements — check Discord.</li>
+        <li>Hints may be released over time at organizer discretion.</li>
+      </ul>
+    </section>
+
+    <section class="rule-section">
+      <h2>5. Scoring</h2>
+      <ul>
+        <li>Points are fixed per challenge and do not decrease over time.</li>
+        <li>Tiebreaks are decided by time of last solve (earlier wins).</li>
+        <li>The scoreboard updates in real time.</li>
+      </ul>
+    </section>
+
+    <section class="rule-section">
+      <h2>6. Conduct</h2>
+      <ul>
+        <li>Be respectful in all communication channels.</li>
+        <li>No harassment, hate speech, or unsolicited contact with other participants.</li>
+        <li>Organizer decisions are final.</li>
+      </ul>
+    </section>
+
+    <div class="callout">
+      Questions? Ask in <strong>#ctf-support</strong> on Discord or DM an organizer.
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .rules-page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+  }
+
+  h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .subtitle {
+    color: var(--color-muted);
+    margin-bottom: 2.5rem;
+  }
+
+  .rule-section {
+    margin-bottom: 2rem;
+  }
+
+  .rule-section h2 {
+    font-size: 1.2rem;
+    color: var(--color-accent);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .rule-section ul {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .rule-section li {
+    padding-left: 1.2rem;
+    position: relative;
+    line-height: 1.6;
+  }
+
+  /* Custom bullet using the accent color */
+  .rule-section li::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    color: var(--color-accent);
+    font-weight: bold;
+  }
+
+  code {
+    background: var(--color-surface);
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+    border: 1px solid var(--color-border);
+  }
+
+  a {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+  a:hover { text-decoration: underline; }
+
+  .callout {
+    margin-top: 3rem;
+  }
+</style>

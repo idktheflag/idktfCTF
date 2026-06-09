@@ -1,0 +1,31 @@
+# PersistentVolumeClaim (PVC) — requests storage from the cluster.
+#
+# Kubernetes storage model:
+#   PersistentVolume (PV):       actual storage resource (managed by cluster admin
+#                                 or provisioned dynamically by a StorageClass)
+#   PersistentVolumeClaim (PVC): a pod's request for storage ("I need 5Gi")
+#   StorageClass:                policy that creates PVs automatically on demand
+#
+# When a PVC is created, Kubernetes finds a matching PV or asks the StorageClass
+# to provision one. The pod then mounts the PVC like a regular volume.
+#
+# Unlike a pod (which is ephemeral), a PVC persists until explicitly deleted.
+# This means Postgres data survives pod restarts and redeployments.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: ctf
+spec:
+  # ReadWriteOnce: only one node can mount this volume at a time (read+write).
+  # This is appropriate for a single-instance database.
+  # Other modes: ReadOnlyMany (many readers), ReadWriteMany (requires special storage).
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      # 5 GiB should be plenty for a CTF. Adjust if you expect massive solve logs.
+      storage: 5Gi
+  # Omitting storageClassName lets Kubernetes use the cluster's default StorageClass.
+  # On most cloud providers (GKE, EKS, AKS) and k3s, a default is configured.
+  # On bare metal you may need to specify one (e.g. local-path, longhorn).

@@ -1,0 +1,372 @@
+---
+// pages/teams.astro — team management page.
+//
+// Shows different UI depending on state:
+//   - Not logged in → redirect to /login
+//   - On a team     → show team info, invite code, members, leave button
+//   - Not on a team → show create form + join form
+//
+// All state changes (create/join/leave) happen via JS fetch using the teams API.
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Team — idktheflag CTF">
+  <main class="teams-page">
+    <h1>Team</h1>
+
+    <!-- Loading spinner while we fetch team status -->
+    <div id="loading">Loading...</div>
+
+    <!-- ── No team: create or join ──────────────────────────────────────────── -->
+    <div id="no-team" style="display:none">
+      <p class="subtitle">You're not on a team yet. Create one or join with an invite code.</p>
+
+      <div class="forms-grid">
+        <!-- Create team -->
+        <div class="card">
+          <h2>Create a Team</h2>
+          <form id="create-form">
+            <label for="team-name">Team Name</label>
+            <input
+              id="team-name"
+              type="text"
+              placeholder="idktheflag B-team"
+              maxlength="64"
+              required
+            />
+            <div id="create-error" class="msg-error" style="display:none"></div>
+            <button type="submit" class="btn btn-primary">Create Team</button>
+          </form>
+        </div>
+
+        <!-- Join team -->
+        <div class="card">
+          <h2>Join a Team</h2>
+          <form id="join-form">
+            <label for="invite-code">Invite Code</label>
+            <input
+              id="invite-code"
+              type="text"
+              placeholder="a1b2c3d4"
+              maxlength="8"
+              required
+            />
+            <div id="join-error" class="msg-error" style="display:none"></div>
+            <button type="submit" class="btn btn-primary">Join Team</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Has a team: show details ─────────────────────────────────────────── -->
+    <div id="has-team" style="display:none">
+      <div class="team-header card">
+        <div class="team-header-info">
+          <h2 id="team-name-display"></h2>
+          <p id="team-ctftime-link" style="display:none">
+            <a id="team-ctftime-anchor" href="#" target="_blank" rel="noopener">
+              View on CTFtime ↗
+            </a>
+          </p>
+        </div>
+        <div class="team-invite">
+          <span class="invite-label">Invite Code</span>
+          <div class="invite-code-row">
+            <code id="team-invite-code"></code>
+            <button id="copy-btn" class="btn btn-ghost" title="Copy to clipboard">Copy</button>
+          </div>
+          <p class="invite-hint">Share this with teammates so they can join via the Join form.</p>
+        </div>
+      </div>
+
+      <!-- Members table -->
+      <div class="card">
+        <div class="members-header">
+          <h2>Members</h2>
+          <span id="team-score-badge" class="score-badge"></span>
+        </div>
+        <table id="members-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Username</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody id="members-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Danger zone -->
+      <div class="danger-zone card">
+        <h2>Leave Team</h2>
+        <p>You'll become a solo player. If you're the last member, the team will be deleted.</p>
+        <div id="leave-error" class="msg-error" style="display:none"></div>
+        <button id="leave-btn" class="btn" style="background:var(--color-accent)">Leave Team</button>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import { currentUser, teams, ApiError } from '../lib/api';
+
+  // Redirect to login if not authenticated.
+  const me = currentUser();
+  if (!me) {
+    window.location.href = '/login';
+    throw new Error('redirect');
+  }
+
+  const $ = (id: string) => document.getElementById(id)!;
+
+  function showSection(id: 'loading' | 'no-team' | 'has-team') {
+    for (const s of ['loading', 'no-team', 'has-team']) {
+      ($(s) as HTMLElement).style.display = s === id ? 'block' : 'none';
+    }
+  }
+
+  function showError(id: string, msg: string) {
+    const el = $(id) as HTMLElement;
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function clearError(id: string) {
+    const el = $(id) as HTMLElement;
+    el.textContent = '';
+    el.style.display = 'none';
+  }
+
+  // ── Render the "has team" section ──────────────────────────────────────────
+
+  function renderTeam(team: Awaited<ReturnType<typeof teams.me>>) {
+    ($('team-name-display') as HTMLElement).textContent = team.name;
+
+    if (team.ctftime_id) {
+      const anchor = $('team-ctftime-anchor') as HTMLAnchorElement;
+      anchor.href = `https://ctftime.org/team/${team.ctftime_id}`;
+      $('team-ctftime-link').style.display = 'block';
+    }
+
+    const inviteEl = $('team-invite-code') as HTMLElement;
+    if (team.invite_code) {
+      inviteEl.textContent = team.invite_code;
+    } else {
+      inviteEl.textContent = '(CTFtime team — no invite code)';
+    }
+
+    ($('team-score-badge') as HTMLElement).textContent =
+      `${team.total_score} pts`;
+
+    const tbody = $('members-body') as HTMLTableSectionElement;
+    tbody.innerHTML = '';
+    team.members.forEach((m, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td>${m.username}${m.username === me!.username ? ' <span class="you-badge">you</span>' : ''}</td>
+        <td>${m.score}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    showSection('has-team');
+  }
+
+  // ── Load initial state ─────────────────────────────────────────────────────
+
+  showSection('loading');
+
+  try {
+    const team = await teams.me();
+    renderTeam(team);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) {
+      // 404 = not on a team — show create/join forms.
+      showSection('no-team');
+    } else {
+      // Unexpected error.
+      showSection('no-team');
+      showError('create-error', e instanceof Error ? e.message : 'Failed to load team');
+    }
+  }
+
+  // ── Create team ────────────────────────────────────────────────────────────
+
+  $('create-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearError('create-error');
+    const name = ($('team-name') as HTMLInputElement).value.trim();
+    try {
+      await teams.create(name);
+      // Reload to show full team detail (member count, etc.)
+      const team = await teams.me();
+      renderTeam(team);
+    } catch (err) {
+      showError('create-error', err instanceof ApiError ? err.message : 'Failed to create team');
+    }
+  });
+
+  // ── Join team ──────────────────────────────────────────────────────────────
+
+  $('join-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearError('join-error');
+    const code = ($('invite-code') as HTMLInputElement).value.trim();
+    try {
+      await teams.join(code);
+      const team = await teams.me();
+      renderTeam(team);
+    } catch (err) {
+      showError('join-error', err instanceof ApiError ? err.message : 'Failed to join team');
+    }
+  });
+
+  // ── Copy invite code ───────────────────────────────────────────────────────
+
+  $('copy-btn').addEventListener('click', () => {
+    const code = ($('team-invite-code') as HTMLElement).textContent ?? '';
+    navigator.clipboard.writeText(code).then(() => {
+      const btn = $('copy-btn') as HTMLButtonElement;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+    });
+  });
+
+  // ── Leave team ─────────────────────────────────────────────────────────────
+
+  $('leave-btn').addEventListener('click', async () => {
+    if (!confirm('Leave your team? If you\'re the last member, the team will be deleted.')) return;
+    clearError('leave-error');
+    try {
+      await teams.leave();
+      showSection('no-team');
+      // Clear the forms for a clean state.
+      ($('team-name') as HTMLInputElement).value = '';
+      ($('invite-code') as HTMLInputElement).value = '';
+    } catch (err) {
+      showError('leave-error', err instanceof ApiError ? err.message : 'Failed to leave team');
+    }
+  });
+</script>
+
+<style>
+  .teams-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+  }
+
+  h1 { margin-bottom: 0.25rem; }
+  .subtitle {
+    color: var(--color-muted);
+    margin-bottom: 2rem;
+  }
+
+  .forms-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  @media (max-width: 600px) {
+    .forms-grid { grid-template-columns: 1fr; }
+  }
+
+  .card { margin-bottom: 1.5rem; }
+
+  .team-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .team-header h2 {
+    font-size: 1.8rem;
+    margin: 0;
+  }
+
+  .team-invite { flex-shrink: 0; }
+  .invite-label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-muted);
+    margin-bottom: 0.4rem;
+  }
+
+  .invite-code-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .invite-code-row code {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    padding: 0.3rem 0.75rem;
+    border-radius: 4px;
+    font-size: 1.1rem;
+    letter-spacing: 0.1em;
+  }
+
+  .invite-hint {
+    font-size: 0.8rem;
+    color: var(--color-muted);
+    margin-top: 0.4rem;
+  }
+
+  .members-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  .members-header h2 { margin: 0; }
+
+  .score-badge {
+    background: var(--color-accent);
+    color: #fff;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: bold;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th, td {
+    padding: 0.6rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+  }
+  th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-muted);
+  }
+  tr:last-child td { border-bottom: none; }
+
+  .you-badge {
+    background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+    color: var(--color-accent);
+    font-size: 0.7rem;
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+  }
+
+  .danger-zone h2 {
+    color: var(--color-accent);
+    margin-bottom: 0.4rem;
+  }
+
+  a { color: var(--color-accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>

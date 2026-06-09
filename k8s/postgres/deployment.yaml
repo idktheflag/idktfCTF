@@ -1,0 +1,87 @@
+# Deployment for PostgreSQL.
+#
+# A Deployment manages a set of identical Pods and ensures the desired number
+# are always running. If a Pod crashes, the Deployment controller replaces it.
+#
+# Why not StatefulSet?
+#   StatefulSets give Pods stable network identities and ordered startup —
+#   useful for clustered databases (Postgres HA, Cassandra, etc.).
+#   For a single-replica Postgres, a Deployment is simpler and sufficient.
+#   The data is safe because it's in the PVC (not in the Pod itself).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ctf-postgres
+  namespace: ctf
+  labels:
+    app: ctf-postgres
+spec:
+  # Only one Postgres pod at a time — multiple would fight over the PVC
+  # and corrupt data (since we're using ReadWriteOnce, not a distributed DB).
+  replicas: 1
+  selector:
+    # The Deployment uses this selector to find "its" pods.
+    matchLabels:
+      app: ctf-postgres
+  template:
+    metadata:
+      labels:
+        app: ctf-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: ctf
+            - name: POSTGRES_DB
+              value: ctf
+            - name: POSTGRES_PASSWORD
+              # valueFrom lets us pull the value from a Secret instead of
+              # hardcoding it in the manifest. The pod gets the decoded value
+              # as an env var — the base64 encoding is transparent.
+              valueFrom:
+                secretKeyRef:
+                  name: ctf-postgres-secret   # separate secret for DB password
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            # Mount the PVC at the path Postgres uses for data files.
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+              # subPath prevents Postgres from complaining about a non-empty mount dir.
+              # Without it, postgres:16-alpine's entrypoint sees the volume root and
+              # sometimes gets confused by the "lost+found" directory on ext4 volumes.
+              subPath: postgres
+          # ── Health probes ──────────────────────────────────────────────────
+          # Kubernetes uses probes to decide if a container is healthy.
+          # Without probes, k8s considers the container ready the moment it starts,
+          # even if Postgres is still initializing.
+          readinessProbe:
+            # exec runs a command inside the container. Exit code 0 = ready.
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - ctf
+                - -d
+                - ctf
+            initialDelaySeconds: 5   # wait 5s before first check
+            periodSeconds: 5         # check every 5s
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - ctf
+                - -d
+                - ctf
+            initialDelaySeconds: 30  # give Postgres more time to initialize
+            periodSeconds: 10
+            failureThreshold: 6      # restart after 6 consecutive failures (~1 min)
+      volumes:
+        # Bind the PVC we created to a volume name used in volumeMounts above.
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc

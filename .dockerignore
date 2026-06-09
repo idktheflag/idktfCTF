@@ -1,0 +1,23 @@
+# Don't copy build artifacts into the Docker build context.
+# Sending fewer bytes to the Docker daemon = faster builds.
+/target
+
+# Frontend is built and served separately (Cloudflare Pages or a CDN).
+# It doesn't belong in the API image.
+frontend/node_modules
+frontend/dist
+frontend/.astro
+
+# Kubernetes secrets and .env files — never bake credentials into images.
+k8s/secrets.yaml
+k8s/cloudflared/secret.yaml
+**/.env
+
+# Version control metadata — not needed at runtime.
+.git
+.gitignore
+
+# Editor cruft.
+.vscode
+.idea
+*.swp

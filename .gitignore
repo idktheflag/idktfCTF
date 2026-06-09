@@ -1,1 +1,13 @@
+# Rust build artifacts
 /target
+
+# Kubernetes secret manifests — contain real credentials, never commit
+k8s/secrets.yaml
+k8s/postgres/secret.yaml
+k8s/cloudflared/secret.yaml
+
+# Frontend
+frontend/.env
+frontend/dist
+frontend/node_modules
+frontend/.astro

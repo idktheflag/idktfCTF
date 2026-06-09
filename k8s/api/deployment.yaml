@@ -1,0 +1,110 @@
+# Deployment for the idktfCTF Rust API.
+#
+# Unlike Postgres, the API is stateless — all persistent state lives in Postgres.
+# Stateless pods can scale horizontally (replicas: 2, 3, ...) and be replaced
+# without data loss. For a CTF we use replicas: 1 (traffic is low), but it
+# could be bumped up trivially.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ctf-api
+  namespace: ctf
+  labels:
+    app: ctf-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ctf-api
+  # RollingUpdate strategy: bring up a new pod before killing the old one.
+  # This gives zero-downtime deployments — the service keeps routing to the
+  # old pod until the new one passes its readiness probe.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0   # never have zero running pods during the update
+      maxSurge: 1         # allow one extra pod (old + new) during transition
+  template:
+    metadata:
+      labels:
+        app: ctf-api
+    spec:
+      containers:
+        - name: api
+          # Replace with your actual image name after pushing to a registry.
+          # e.g. ghcr.io/riverxia/idktfctf:latest
+          # GitHub Container Registry (ghcr.io) is free for public repos.
+          image: ghcr.io/REPLACE_WITH_YOUR_GITHUB_USERNAME/idktfctf:latest
+          imagePullPolicy: Always
+          # Always = always pull (picks up :latest changes).
+          # IfNotPresent = only pull if not cached (better for versioned tags).
+          ports:
+            - containerPort: 3000
+          env:
+            # Pull all secrets from the ctf-secrets Secret we defined.
+            # Each entry maps a Secret key to an env var name.
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ctf-secrets
+                  key: DATABASE_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ctf-secrets
+                  key: JWT_SECRET
+            - name: CTFTIME_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: ctf-secrets
+                  key: CTFTIME_CLIENT_ID
+                  # optional: true means the pod starts even if this secret
+                  # key is missing — useful since CTFtime OAuth is optional.
+                  optional: true
+            - name: CTFTIME_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ctf-secrets
+                  key: CTFTIME_CLIENT_SECRET
+                  optional: true
+            - name: CTFTIME_REDIRECT_URI
+              valueFrom:
+                secretKeyRef:
+                  name: ctf-secrets
+                  key: CTFTIME_REDIRECT_URI
+                  optional: true
+            - name: FRONTEND_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ctf-secrets
+                  key: FRONTEND_URL
+            - name: RUST_LOG
+              value: info,sqlx=warn
+          # ── Health probes ────────────────────────────────────────────────────
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            # The pod is removed from Service load-balancing until this passes.
+            # Since we have replicas: 1, this means the rolling update waits
+            # for the new pod to be healthy before routing traffic to it.
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+            # After 3 failures the pod is killed and restarted automatically.
+          resources:
+            requests:
+              # "requests" = minimum guaranteed resources. Scheduler uses this
+              # to decide which node to place the pod on.
+              cpu:    "100m"    # 100 millicores = 0.1 CPU cores
+              memory: "128Mi"
+            limits:
+              # "limits" = hard cap. Container is killed if it exceeds memory.
+              cpu:    "500m"
+              memory: "256Mi"

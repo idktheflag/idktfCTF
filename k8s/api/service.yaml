@@ -1,0 +1,19 @@
+# Service for the API — gives it a stable cluster-internal DNS name.
+# cloudflared (in the next manifest) routes traffic to this Service.
+#
+# We do NOT use type: LoadBalancer or type: NodePort because we're using a
+# Cloudflare tunnel instead of a public load balancer. The tunnel reaches into
+# the cluster via the cloudflared pod, which connects to this ClusterIP Service.
+# This means no firewall port-forwarding, no public IP needed on the node.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ctf-api-svc
+  namespace: ctf
+spec:
+  type: ClusterIP
+  selector:
+    app: ctf-api
+  ports:
+    - port: 3000
+      targetPort: 3000

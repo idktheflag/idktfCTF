@@ -161,6 +161,29 @@ export interface UserProfile {
     created_at: string;
 }
 
+export interface TeamMember {
+    id:       string;
+    username: string;
+    score:    number;
+}
+
+export interface TeamDetail {
+    id:          string;
+    name:        string;
+    invite_code: string | null;  // only present if you're a member
+    ctftime_id:  number | null;
+    members:     TeamMember[];
+    total_score: number;
+}
+
+export interface TeamResponse {
+    id:           string;
+    name:         string;
+    invite_code:  string | null;
+    ctftime_id:   number | null;
+    member_count: number;
+}
+
 export interface AdminChallenge extends ChallengeDetail {
     flag:       string;
     is_visible: boolean;
@@ -201,6 +224,14 @@ export const scoreboard = {
 
 export const users = {
     me: () => api<UserProfile>('GET', '/users/me'),
+};
+
+export const teams = {
+    create: (name: string)          => api<TeamResponse>('POST',   '/teams',      { name }),
+    join:   (invite_code: string)   => api<TeamResponse>('POST',   '/teams/join', { invite_code }),
+    leave:  ()                      => api<void>         ('DELETE', '/teams/leave'),
+    me:     ()                      => api<TeamDetail>   ('GET',    '/teams/me'),
+    get:    (id: string)            => api<TeamDetail>   ('GET',    `/teams/${id}`),
 };
 
 export const admin = {
