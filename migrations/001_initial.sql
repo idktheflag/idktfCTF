@@ -10,6 +10,9 @@ CREATE TABLE teams (
     name        TEXT        NOT NULL UNIQUE,
     -- NULL invite_code = anyone can join; set a code to make it invite-only
     invite_code TEXT,
+    -- CTFtime team ID, set when a team is created/linked via CTFtime OAuth.
+    -- UNIQUE ensures two local teams can't claim the same CTFtime team.
+    ctftime_id  INTEGER     UNIQUE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -18,14 +21,18 @@ CREATE TABLE teams (
 CREATE TABLE users (
     id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     username      TEXT        NOT NULL UNIQUE,
-    email         TEXT        NOT NULL UNIQUE,
-    -- We NEVER store plain-text passwords. password_hash holds the bcrypt output,
-    -- which is always exactly 60 characters long.
-    password_hash TEXT        NOT NULL,
+    -- Nullable: CTFtime OAuth doesn't guarantee an email address.
+    email         TEXT        UNIQUE,
+    -- Nullable: CTFtime-only users authenticate via OAuth, not password.
+    -- A user with both ctftime_id and password_hash has linked their accounts.
+    password_hash TEXT,
     is_admin      BOOLEAN     NOT NULL DEFAULT FALSE,
     -- NULL team_id = solo player. ON DELETE SET NULL means if a team is deleted,
     -- members become solo players rather than getting deleted themselves.
     team_id       UUID        REFERENCES teams(id) ON DELETE SET NULL,
+    -- CTFtime user ID, set on first OAuth login. UNIQUE prevents two local
+    -- accounts from linking to the same CTFtime identity.
+    ctftime_id    INTEGER     UNIQUE,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
