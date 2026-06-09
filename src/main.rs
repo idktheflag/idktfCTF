@@ -11,7 +11,7 @@ mod error;
 mod routes;
 mod state;
 
-use state::AppState;
+use state::{AppState, CtftimeConfig};
 
 #[tokio::main]
 async fn main() {
@@ -24,15 +24,38 @@ async fn main() {
         .await
         .expect("failed to connect to database and run migrations");
     tracing::info!("database connected, migrations applied");
-    // arc new wraps appstate in atomic reference couted pointer
-    // clone is cheap
-    let state = Arc::new(AppState { pool, jwt_secret });
+
+    // CTFtime OAuth config is optional — all three vars must be set together
+    // or not at all. If missing, /auth/ctftime routes return 400.
+    let ctftime = match (
+        std::env::var("CTFTIME_CLIENT_ID"),
+        std::env::var("CTFTIME_CLIENT_SECRET"),
+        std::env::var("CTFTIME_REDIRECT_URI"),
+    ) {
+        (Ok(client_id), Ok(client_secret), Ok(redirect_uri)) => {
+            tracing::info!("CTFtime OAuth enabled");
+            Some(CtftimeConfig { client_id, client_secret, redirect_uri })
+        }
+        _ => {
+            tracing::warn!("CTFtime OAuth disabled (CTFTIME_* env vars not set)");
+            None
+        }
+    };
+
+    let state = Arc::new(AppState {
+        pool,
+        jwt_secret,
+        http: reqwest::Client::new(),
+        ctftime,
+    });
 
     let app = Router::new()
         // ── Public ────────────────────────────────────────────────────────────
         .route("/health",         get(routes::health::handler))
-        .route("/auth/register",  post(auth::login::register))
-        .route("/auth/login",     post(auth::login::login))
+        .route("/auth/register",          post(auth::login::register))
+        .route("/auth/login",             post(auth::login::login))
+        .route("/auth/ctftime",           get(auth::ctftime::redirect))
+        .route("/auth/ctftime/callback",  get(auth::ctftime::callback))
         // ── Authenticated (any valid user) ────────────────────────────────────
         .route("/challenges",              get(routes::challenges::list_challenges))
         .route("/challenges/:id",          get(routes::challenges::get_challenge))

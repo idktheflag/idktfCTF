@@ -18,6 +18,10 @@ hmac = "0.12"          # HMAC construction: wraps any hash fn into a MAC
 sha2 = "0.10"          # SHA-256 hash function
 base64 = "0.22"        # base64url encoding for JWT sections
 subtle = "2"           # constant-time byte comparison (timing-attack defense)
+# HTTP client for calling CTFtime's OAuth token + user endpoints.
+# "json" feature enables .json::<T>() on responses (uses serde internally).
+reqwest = { version = "0.12", features = ["json"] }
+urlencoding = "2"      # percent-encodes the redirect_uri in the OAuth URL
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
