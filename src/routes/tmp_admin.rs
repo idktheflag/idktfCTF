@@ -58,11 +58,12 @@ pub struct AdminChallengeResponse {
 
 #[derive(Serialize)]
 pub struct AdminUserResponse {
-    pub id:       Uuid,
-    pub username: String,
-    pub email:    String,
-    pub is_admin: bool,
-    pub team_id:  Option<Uuid>,
+    pub id:         Uuid,
+    pub username:   String,
+    pub email:      Option<String>,
+    pub is_admin:   bool,
+    pub team_id:    Option<Uuid>,
+    pub ctftime_id: Option<i32>,
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -177,11 +178,12 @@ pub async fn list_users(
     let response = users
         .into_iter()
         .map(|u| AdminUserResponse {
-            id:       u.id,
-            username: u.username,
-            email:    u.email,
-            is_admin: u.is_admin,
-            team_id:  u.team_id,
+            id:         u.id,
+            username:   u.username,
+            email:      u.email,
+            is_admin:   u.is_admin,
+            team_id:    u.team_id,
+            ctftime_id: u.ctftime_id,
         })
         .collect();
 

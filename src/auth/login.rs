@@ -39,7 +39,7 @@ pub struct AuthResponse {
 pub async fn register(
     State(state): State<Arc<AppState>>,
     Json(body): Json<RegisterRequest>,
-) -> Result<StatusCode, Json<AuthResponse>), AppError> {
+) -> Result<(StatusCode, Json<AuthResponse>), AppError> {
     let pwd_hash = bcrypt::hash(&body.password, bcrypt::DEFAULT_COST)
         .map_err(|e| AppError::Internal(anyhow::anyhow!("bcrypt hash fail: {e}")))?;
     let uid: Uuid = sqlx::query_scalar(
@@ -75,7 +75,13 @@ pub async fn login(
         .fetch_optional(&state.pool)
         .await?
         .ok_or(AppError::Unauthorized)?;
-    let valid = bcrypt::verify(&body.password, &user.pwd_hash)
+    // pwd_hash is None if this account was created via CTFtime OAuth.
+    // Tell them to log in with CTFtime instead of returning a confusing 401.
+    let hash = user.pwd_hash
+        .as_deref()
+        .ok_or_else(|| AppError::BadRequest("this account uses CTFtime login".into()))?;
+
+    let valid = bcrypt::verify(&body.password, hash)
         .map_err(|e| AppError::Internal(anyhow::anyhow!("bcrypt verify failed: {e}")))?;
     if !valid {
         return Err(AppError::Unauthorized);
