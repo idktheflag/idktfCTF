@@ -20,7 +20,7 @@ pub struct Challenge {
     pub category: String,
     pub points: i32,
     pub flag: String, // plaintext, so never send to non-admin clients - do we want to wrap this?
-    pub hint: Option>String>,
+    pub hint: Option<String>,
     pub is_visible: bool,
     pub author: Option<String>,
     pub created_at: DateTime<Utc>,
