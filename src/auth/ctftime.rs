@@ -3,7 +3,6 @@ use std::sync::Arc;
 use axum::{
     extract::{Query, State},
     response::Redirect,
-    Json,
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use hmac::{Hmac, Mac};
