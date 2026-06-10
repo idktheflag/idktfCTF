@@ -1,9 +1,0 @@
---- a/src/routes/teams.rs
-+++ b/src/routes/teams.rs
-@@ -10,7 +10,7 @@ use uuid::Uuid;
-
--use create::{
-+use crate::{
-     auth::middleware::AuthUser,
-     error::AppError,
-     state::AppState,

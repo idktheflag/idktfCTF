@@ -1,6 +1,5 @@
 use std::{
     collections::{HashMap, VecDeque},
-    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -41,7 +40,7 @@ impl RateLimiter {
                     ),
             ));
         }
-        attepmts.push_back(now);
+        attempts.push_back(now);
         Ok(())
     }
 }
