@@ -1,0 +1,12 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -3,7 +3,7 @@
+ name = "idktfCTF"
+ version = "0.1.0"
+-edition = "2024"
++edition = "2021"
+
+ # Reason: axum-core is compiled in edition 2021 and defines FromRequestParts
+ # as `async fn`. In edition 2024, async fn capture semantics changed (RFC 3498),
+ # causing a lifetime mismatch (E0195) when implementing the trait in edition 2024.
+ # Switching back to 2021 aligns capture semantics between axum-core and our code.
