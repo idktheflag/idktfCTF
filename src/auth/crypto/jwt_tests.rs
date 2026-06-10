@@ -1,3 +1,4 @@
+// Run with:  cargo test auth::crypto::jwt
 #[cfg(test)]
 mod tests {
     use super::*;  
