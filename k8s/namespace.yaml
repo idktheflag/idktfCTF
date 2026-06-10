@@ -1,11 +1,6 @@
-# Kubernetes namespaces are like folders for cluster resources.
-# Without a namespace, everything lands in "default" — messy when running
-# multiple applications on the same cluster. We use "ctf" to keep all our
-# resources grouped and easy to nuke: `kubectl delete namespace ctf`
 apiVersion: v1
 kind: Namespace
 metadata:
   name: ctf
   labels:
-    # Labels are arbitrary key-value pairs used to select/filter resources.
     app.kubernetes.io/name: idktfctf
