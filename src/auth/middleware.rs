@@ -1,8 +1,4 @@
-// In Rust 1.85+, async fn in trait impls changed lifetime capture semantics
-// (RFC 3498 precise capturing). axum-core's FromRequestParts uses native AFIT
-// but Rust 1.92 requires implementors to use the explicit Box::pin form so the
-// lifetime bounds match exactly. This is equivalent to what #[async_trait] emits.
-use std::{future::Future, pin::Pin, sync::Arc};
+use std::sync::Arc;
 
 use axum::{
     extract::FromRequestParts,
@@ -25,58 +21,44 @@ pub struct AuthUser {
 
 #[derive(Debug, Clone)]
 pub struct AdminUser(pub AuthUser);
-
 impl FromRequestParts<Arc<AppState>> for AuthUser {
     type Rejection = AppError;
-
-    fn from_request_parts<'life0, 'life1, 'async_trait>(
-        parts: &'life0 mut Parts,
-        state: &'life1 Arc<AppState>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Self::Rejection>> + Send + 'async_trait>>
-    where
-        'life0: 'async_trait,
-        'life1: 'async_trait,
-        Self: 'async_trait,
-    {
-        Box::pin(async move {
-            let auth_header = parts
-                .headers
-                .get(HeaderName::from_static("authorization"))
-                .and_then(|v| v.to_str().ok())
-                .ok_or(AppError::Unauthorized)?;
-            let token = auth_header
-                .strip_prefix("Bearer ")
-                .ok_or(AppError::Unauthorized)?;
-            let claims = jwt::verify_token(&state.jwt_secret, token)?;
-            let user_id = Uuid::parse_str(&claims.sub)
-                .map_err(|_| AppError::Unauthorized)?;
-            Ok(AuthUser {
-                user_id,
-                username: claims.username,
-                is_admin: claims.is_admin,
-            })
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state:& Arc<AppState>,
+    ) -> Result<Self, Self::Rejection> {
+        let auth_header = parts
+            .headers
+            .get(HeaderName::from_static("authorization"))
+            .and_then(|v| v.to_str().ok())
+            .ok_or(AppError::Unauthorized)?;
+        let token = auth_header
+            .strip_prefix("Bearer ")
+            .ok_or(AppError::Unauthorized)?;
+        let claims = jwt::verify_token(&state.jwt_secret, token)?;
+        let user_id = Uuid::parse_str(&claims.sub)
+            .map_err(|_| AppError::Unauthorized)?;
+        Ok(AuthUser {
+            user_id,
+            username: claims.username,
+            is_admin: claims.is_admin,
         })
     }
 }
+
+//adminuser extractor
 
 impl FromRequestParts<Arc<AppState>> for AdminUser {
     type Rejection = AppError;
-
-    fn from_request_parts<'life0, 'life1, 'async_trait>(
-        parts: &'life0 mut Parts,
-        state: &'life1 Arc<AppState>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Self::Rejection>> + Send + 'async_trait>>
-    where
-        'life0: 'async_trait,
-        'life1: 'async_trait,
-        Self: 'async_trait,
-    {
-        Box::pin(async move {
-            let auth_user = AuthUser::from_request_parts(parts, state).await?;
-            if !auth_user.is_admin {
-                return Err(AppError::Forbidden);
-            }
-            Ok(AdminUser(auth_user))
-        })
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<AppState>,
+    ) -> Result<Self, Self::Rejection> {
+        let auth_user = AuthUser::from_request_parts(parts, state).await?;
+        if !auth_user.is_admin {
+            return Err(AppError::Forbidden);
+        }
+        Ok(AdminUser(auth_user))
     }
 }
+
