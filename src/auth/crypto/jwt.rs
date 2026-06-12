@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn rejects_tampered_signature() {
         let token = create_token(TEST_SECRET, test_user(), "river", false).unwrap();
-        let mut parts: Vec<&str> = token.splitn(3, '.').collect();
+        let parts: Vec<&str> = token.splitn(3, '.').collect();
         assert_eq!(parts.len(), 3);
         let mut sig = parts[2].to_string();
         let last = sig.pop().unwrap();
