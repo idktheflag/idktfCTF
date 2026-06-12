@@ -48,7 +48,9 @@ pub async fn redirect(
     State(state): State<Arc<AppState>>,
     maybe_auth: Option<AuthUser>,
 ) -> Result<Redirect, AppError> {
-    let config = state.ctftime.as_ref()
+    let config = state
+        .ctftime
+        .as_ref()
         .ok_or_else(|| AppError::BadRequest("CTFtime OAuth is not configured".into()))?;
 
     // Build a signed state token to prevent CSRF attacks.
@@ -82,16 +84,19 @@ pub async fn callback(
     State(state): State<Arc<AppState>>,
     Query(params): Query<CallbackQuery>,
 ) -> Result<Redirect, AppError> {
-    let config = state.ctftime.as_ref()
+    let config = state
+        .ctftime
+        .as_ref()
         .ok_or_else(|| AppError::BadRequest("CTFtime OAuth is not configured".into()))?;
     let linking_user_id = verify_state(&state.jwt_secret, &params.state)?;
-    let token_res = state.http
+    let token_res = state
+        .http
         .post("https://oauth.ctftime.org/token")
         .form(&[
-            ("grant_type",    "authorization_code"),
-            ("code",          params.code.as_str()),
-            ("redirect_uri",  config.redirect_uri.as_str()),
-            ("client_id",     config.client_id.as_str()),
+            ("grant_type", "authorization_code"),
+            ("code", params.code.as_str()),
+            ("redirect_uri", config.redirect_uri.as_str()),
+            ("client_id", config.client_id.as_str()),
             ("client_secret", config.client_secret.as_str()),
         ])
         .send()
@@ -100,7 +105,8 @@ pub async fn callback(
         .json::<TokenResponse>()
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("CTFtime token parse failed: {e}")))?;
-    let profile = state.http
+    let profile = state
+        .http
         .get("https://oauth.ctftime.org/user")
         .bearer_auth(&token_res.access_token)
         .send()
@@ -237,29 +243,34 @@ fn verify_state(jwt_secret: &str, state: &str) -> Result<Option<Uuid>, AppError>
 
     let mut iter = data.splitn(2, '|');
     let user_part = iter.next().unwrap_or("");
-    let ts_str = iter.next()
+    let ts_str = iter
+        .next()
         .ok_or_else(|| AppError::BadRequest("malformed state data".into()))?;
 
     // Reject state tokens older than 10 minutes.
-    let timestamp: i64 = ts_str.parse()
+    let timestamp: i64 = ts_str
+        .parse()
         .map_err(|_| AppError::BadRequest("invalid state timestamp".into()))?;
     if chrono::Utc::now().timestamp() - timestamp > 600 {
-        return Err(AppError::BadRequest("OAuth state expired, please try again".into()));
+        return Err(AppError::BadRequest(
+            "OAuth state expired, please try again".into(),
+        ));
     }
 
     let linking_user_id = if user_part.is_empty() {
         None
     } else {
-        Some(Uuid::parse_str(user_part)
-            .map_err(|_| AppError::BadRequest("invalid user id in state".into()))?)
+        Some(
+            Uuid::parse_str(user_part)
+                .map_err(|_| AppError::BadRequest("invalid user id in state".into()))?,
+        )
     };
 
     Ok(linking_user_id)
 }
 
 fn hmac_sign(key: &[u8], data: &[u8]) -> Vec<u8> {
-    let mut mac = HmacSha256::new_from_slice(key)
-        .expect("HMAC accepts any non-empty key");
+    let mut mac = HmacSha256::new_from_slice(key).expect("HMAC accepts any non-empty key");
     mac.update(data);
     mac.finalize().into_bytes().to_vec()
 }

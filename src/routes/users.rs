@@ -8,11 +8,11 @@ use uuid::Uuid;
 use crate::{auth::middleware::AuthUser, db::models::User, error::AppError, state::AppState};
 #[derive(Serialize)]
 pub struct UserProfile {
-    pub id:         Uuid,
-    pub username:   String,
-    pub email:      Option<String>,
-    pub is_admin:   bool,
-    pub team_id:    Option<Uuid>,
+    pub id: Uuid,
+    pub username: String,
+    pub email: Option<String>,
+    pub is_admin: bool,
+    pub team_id: Option<Uuid>,
     pub ctftime_id: Option<i32>,
     pub created_at: DateTime<Utc>,
 }
@@ -29,13 +29,12 @@ pub async fn me(
         .await?
         .ok_or(AppError::NotFound)?;
     Ok(Json(UserProfile {
-        id:         user.id,
-        username:   user.username,
-        email:      user.email,
-        is_admin:   user.is_admin,
-        team_id:    user.team_id,
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        is_admin: user.is_admin,
+        team_id: user.team_id,
         ctftime_id: user.ctftime_id,
         created_at: user.created_at,
     }))
 }
-

@@ -8,11 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{
-    auth::middleware::AuthUser,
-    error::AppError,
-    state::AppState,
-};
+use crate::{auth::middleware::AuthUser, error::AppError, state::AppState};
 
 #[derive(Serialize)]
 pub struct TeamResponse {
@@ -32,11 +28,11 @@ pub struct TeamMember {
 
 #[derive(Serialize)]
 pub struct TeamDetail {
-    pub id:          Uuid,
-    pub name:        String,
+    pub id: Uuid,
+    pub name: String,
     pub invite_code: Option<String>,
-    pub ctftime_id:  Option<i32>,
-    pub members:     Vec<TeamMember>,
+    pub ctftime_id: Option<i32>,
+    pub members: Vec<TeamMember>,
     pub total_score: i64,
 }
 
@@ -66,15 +62,16 @@ pub async fn create_team(
         return Err(AppError::BadRequest("team name cannot be empty".into()));
     }
     if body.name.len() > 64 {
-        return Err(AppError::BadRequest("team name must be 64 characters or fewer".into()));
+        return Err(AppError::BadRequest(
+            "team name must be 64 characters or fewer".into(),
+        ));
     }
 
     // Ensure the user isn't already on a team.
-    let existing_team: Option<Uuid> =
-        sqlx::query_scalar("SELECT team_id FROM users WHERE id = $1")
-            .bind(auth.user_id)
-            .fetch_one(&state.pool)
-            .await?;
+    let existing_team: Option<Uuid> = sqlx::query_scalar("SELECT team_id FROM users WHERE id = $1")
+        .bind(auth.user_id)
+        .fetch_one(&state.pool)
+        .await?;
 
     if existing_team.is_some() {
         return Err(AppError::Conflict(
@@ -84,21 +81,20 @@ pub async fn create_team(
 
     let invite_code = generate_invite_code();
 
-    let team_id: Uuid = sqlx::query_scalar(
-        "INSERT INTO teams (name, invite_code) VALUES ($1, $2) RETURNING id",
-    )
-    .bind(body.name.trim())
-    .bind(&invite_code)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(|e| {
-        if let sqlx::Error::Database(ref de) = e {
-            if de.constraint() == Some("teams_name_key") {
-                return AppError::Conflict("a team with that name already exists".into());
-            }
-        }
-        AppError::Database(e)
-    })?;
+    let team_id: Uuid =
+        sqlx::query_scalar("INSERT INTO teams (name, invite_code) VALUES ($1, $2) RETURNING id")
+            .bind(body.name.trim())
+            .bind(&invite_code)
+            .fetch_one(&state.pool)
+            .await
+            .map_err(|e| {
+                if let sqlx::Error::Database(ref de) = e {
+                    if de.constraint() == Some("teams_name_key") {
+                        return AppError::Conflict("a team with that name already exists".into());
+                    }
+                }
+                AppError::Database(e)
+            })?;
 
     sqlx::query("UPDATE users SET team_id = $1 WHERE id = $2")
         .bind(team_id)
@@ -109,10 +105,10 @@ pub async fn create_team(
     Ok((
         StatusCode::CREATED,
         Json(TeamResponse {
-            id:           team_id,
-            name:         body.name.trim().to_string(),
-            invite_code:  Some(invite_code),
-            ctftime_id:   None,
+            id: team_id,
+            name: body.name.trim().to_string(),
+            invite_code: Some(invite_code),
+            ctftime_id: None,
             member_count: 1,
         }),
     ))
@@ -126,11 +122,10 @@ pub async fn join_team(
     Json(body): Json<JoinTeamRequest>,
 ) -> Result<Json<TeamResponse>, AppError> {
     // Check for existing membership.
-    let existing_team: Option<Uuid> =
-        sqlx::query_scalar("SELECT team_id FROM users WHERE id = $1")
-            .bind(auth.user_id)
-            .fetch_one(&state.pool)
-            .await?;
+    let existing_team: Option<Uuid> = sqlx::query_scalar("SELECT team_id FROM users WHERE id = $1")
+        .bind(auth.user_id)
+        .fetch_one(&state.pool)
+        .await?;
 
     if existing_team.is_some() {
         return Err(AppError::Conflict(
@@ -148,11 +143,10 @@ pub async fn join_team(
 
     let (team_id, team_name, ctftime_id) = team;
 
-    let member_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE team_id = $1")
-            .bind(team_id)
-            .fetch_one(&state.pool)
-            .await?;
+    let member_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE team_id = $1")
+        .bind(team_id)
+        .fetch_one(&state.pool)
+        .await?;
 
     sqlx::query("UPDATE users SET team_id = $1 WHERE id = $2")
         .bind(team_id)
@@ -177,14 +171,12 @@ pub async fn leave_team(
     State(state): State<Arc<AppState>>,
     auth: AuthUser,
 ) -> Result<StatusCode, AppError> {
-    let team_id: Option<Uuid> =
-        sqlx::query_scalar("SELECT team_id FROM users WHERE id = $1")
-            .bind(auth.user_id)
-            .fetch_one(&state.pool)
-            .await?;
+    let team_id: Option<Uuid> = sqlx::query_scalar("SELECT team_id FROM users WHERE id = $1")
+        .bind(auth.user_id)
+        .fetch_one(&state.pool)
+        .await?;
 
-    let team_id =
-        team_id.ok_or_else(|| AppError::BadRequest("you are not on a team".into()))?;
+    let team_id = team_id.ok_or_else(|| AppError::BadRequest("you are not on a team".into()))?;
 
     sqlx::query("UPDATE users SET team_id = NULL WHERE id = $1")
         .bind(auth.user_id)
@@ -213,11 +205,10 @@ pub async fn my_team(
     State(state): State<Arc<AppState>>,
     auth: AuthUser,
 ) -> Result<Json<TeamDetail>, AppError> {
-    let team_id: Option<Uuid> =
-        sqlx::query_scalar("SELECT team_id FROM users WHERE id = $1")
-            .bind(auth.user_id)
-            .fetch_one(&state.pool)
-            .await?;
+    let team_id: Option<Uuid> = sqlx::query_scalar("SELECT team_id FROM users WHERE id = $1")
+        .bind(auth.user_id)
+        .fetch_one(&state.pool)
+        .await?;
 
     let team_id = team_id.ok_or(AppError::NotFound)?;
 
@@ -258,9 +249,9 @@ async fn get_team_by_id(
     let (name, invite_code, ctftime_id) = team;
     #[derive(sqlx::FromRow)]
     struct MemberRow {
-        id:       Uuid,
+        id: Uuid,
         username: String,
-        score:    i64,
+        score: i64,
     }
 
     let members: Vec<MemberRow> = sqlx::query_as(
@@ -279,15 +270,19 @@ async fn get_team_by_id(
     Ok(Json(TeamDetail {
         id: team_id,
         name,
-        invite_code: if include_invite_code { invite_code } else { None },
+        invite_code: if include_invite_code {
+            invite_code
+        } else {
+            None
+        },
         ctftime_id,
         total_score,
         members: members
             .into_iter()
             .map(|m| TeamMember {
-                id:       m.id,
+                id: m.id,
                 username: m.username,
-                score:    m.score,
+                score: m.score,
             })
             .collect(),
     }))

@@ -8,42 +8,42 @@ use uuid::Uuid;
 use crate::{auth::middleware::AuthUser, error::AppError, state::AppState};
 #[derive(sqlx::FromRow)]
 struct UserScoreRow {
-    id:            Uuid,
-    username:      String,
-    team_id:       Option<Uuid>,
-    score:         i64,
-    solve_count:   i64,
+    id: Uuid,
+    username: String,
+    team_id: Option<Uuid>,
+    score: i64,
+    solve_count: i64,
     last_solve_at: Option<DateTime<Utc>>,
 }
 
 #[derive(sqlx::FromRow)]
 struct TeamScoreRow {
-    id:            Uuid,
-    name:          String,
-    score:         i64,
-    solve_count:   i64,
+    id: Uuid,
+    name: String,
+    score: i64,
+    solve_count: i64,
     last_solve_at: Option<DateTime<Utc>>,
 }
 
 // Public response types (what the API sends to clients).
 #[derive(Serialize)]
 pub struct UserScore {
-    pub rank:          usize,
-    pub id:            Uuid,
-    pub username:      String,
-    pub team_id:       Option<Uuid>,
-    pub score:         i64,
-    pub solve_count:   i64,
+    pub rank: usize,
+    pub id: Uuid,
+    pub username: String,
+    pub team_id: Option<Uuid>,
+    pub score: i64,
+    pub solve_count: i64,
     pub last_solve_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Serialize)]
 pub struct TeamScore {
-    pub rank:          usize,
-    pub id:            Uuid,
-    pub name:          String,
-    pub score:         i64,
-    pub solve_count:   i64,
+    pub rank: usize,
+    pub id: Uuid,
+    pub name: String,
+    pub score: i64,
+    pub solve_count: i64,
     pub last_solve_at: Option<DateTime<Utc>>,
 }
 
@@ -61,12 +61,12 @@ pub async fn user_scores(
         .into_iter()
         .enumerate()
         .map(|(i, r)| UserScore {
-            rank:          i + 1,
-            id:            r.id,
-            username:      r.username,
-            team_id:       r.team_id,
-            score:         r.score,
-            solve_count:   r.solve_count,
+            rank: i + 1,
+            id: r.id,
+            username: r.username,
+            team_id: r.team_id,
+            score: r.score,
+            solve_count: r.solve_count,
             last_solve_at: r.last_solve_at,
         })
         .collect();
@@ -89,15 +89,14 @@ pub async fn team_scores(
         .into_iter()
         .enumerate()
         .map(|(i, r)| TeamScore {
-            rank:          i + 1,
-            id:            r.id,
-            name:          r.name,
-            score:         r.score,
-            solve_count:   r.solve_count,
+            rank: i + 1,
+            id: r.id,
+            name: r.name,
+            score: r.score,
+            solve_count: r.solve_count,
             last_solve_at: r.last_solve_at,
         })
         .collect();
 
     Ok(Json(scores))
 }
-

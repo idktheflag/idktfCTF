@@ -17,13 +17,13 @@ use crate::{
 
 #[derive(Deserialize)]
 pub struct CreateChallengeRequest {
-    pub title:       String,
+    pub title: String,
     pub description: String,
-    pub category:    String,
-    pub points:      i32,
-    pub flag:        String,
-    pub hint:        Option<String>,
-    pub author:      Option<String>,
+    pub category: String,
+    pub points: i32,
+    pub flag: String,
+    pub hint: Option<String>,
+    pub author: Option<String>,
 }
 
 pub type UpdateChallengeRequest = CreateChallengeRequest;
@@ -35,24 +35,24 @@ pub struct CreatedResponse {
 
 #[derive(Serialize)]
 pub struct AdminChallengeResponse {
-    pub id:          Uuid,
-    pub title:       String,
+    pub id: Uuid,
+    pub title: String,
     pub description: String,
-    pub category:    String,
-    pub points:      i32,
-    pub flag:        String,
-    pub hint:        Option<String>,
-    pub is_visible:  bool,
-    pub author:      Option<String>,
+    pub category: String,
+    pub points: i32,
+    pub flag: String,
+    pub hint: Option<String>,
+    pub is_visible: bool,
+    pub author: Option<String>,
 }
 
 #[derive(Serialize)]
 pub struct AdminUserResponse {
-    pub id:         Uuid,
-    pub username:   String,
-    pub email:      Option<String>,
-    pub is_admin:   bool,
-    pub team_id:    Option<Uuid>,
+    pub id: Uuid,
+    pub username: String,
+    pub email: Option<String>,
+    pub is_admin: bool,
+    pub team_id: Option<Uuid>,
     pub ctftime_id: Option<i32>,
 }
 
@@ -138,13 +138,11 @@ pub async fn toggle_challenge(
     _admin: AdminUser,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
-    let affected = sqlx::query(
-        "UPDATE challenges SET is_visible = NOT is_visible WHERE id = $1",
-    )
-    .bind(id)
-    .execute(&state.pool)
-    .await?
-    .rows_affected();
+    let affected = sqlx::query("UPDATE challenges SET is_visible = NOT is_visible WHERE id = $1")
+        .bind(id)
+        .execute(&state.pool)
+        .await?
+        .rows_affected();
 
     if affected == 0 {
         Err(AppError::NotFound)
@@ -165,11 +163,11 @@ pub async fn list_users(
     let response = users
         .into_iter()
         .map(|u| AdminUserResponse {
-            id:         u.id,
-            username:   u.username,
-            email:      u.email,
-            is_admin:   u.is_admin,
-            team_id:    u.team_id,
+            id: u.id,
+            username: u.username,
+            email: u.email,
+            is_admin: u.is_admin,
+            team_id: u.team_id,
             ctftime_id: u.ctftime_id,
         })
         .collect();
@@ -182,23 +180,22 @@ pub async fn list_challenges(
     State(state): State<Arc<AppState>>,
     _admin: AdminUser,
 ) -> Result<Json<Vec<AdminChallengeResponse>>, AppError> {
-    let challenges =
-        sqlx::query_as::<_, Challenge>("SELECT * FROM challenges ORDER BY created_at")
-            .fetch_all(&state.pool)
-            .await?;
+    let challenges = sqlx::query_as::<_, Challenge>("SELECT * FROM challenges ORDER BY created_at")
+        .fetch_all(&state.pool)
+        .await?;
 
     let response = challenges
         .into_iter()
         .map(|c| AdminChallengeResponse {
-            id:          c.id,
-            title:       c.title,
+            id: c.id,
+            title: c.title,
             description: c.description,
-            category:    c.category,
-            points:      c.points,
-            flag:        c.flag,
-            hint:        c.hint,
-            is_visible:  c.is_visible,
-            author:      c.author,
+            category: c.category,
+            points: c.points,
+            flag: c.flag,
+            hint: c.hint,
+            is_visible: c.is_visible,
+            author: c.author,
         })
         .collect();
 

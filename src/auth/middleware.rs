@@ -6,11 +6,7 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::{
-    auth::crypto::jwt,
-    error::AppError,
-    state::AppState,
-};
+use crate::{auth::crypto::jwt, error::AppError, state::AppState};
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -46,8 +42,7 @@ impl FromRequestParts<Arc<AppState>> for AuthUser {
                 .strip_prefix("Bearer ")
                 .ok_or(AppError::Unauthorized)?;
             let claims = jwt::verify_token(&state.jwt_secret, token)?;
-            let user_id = Uuid::parse_str(&claims.sub)
-                .map_err(|_| AppError::Unauthorized)?;
+            let user_id = Uuid::parse_str(&claims.sub).map_err(|_| AppError::Unauthorized)?;
             Ok(AuthUser {
                 user_id,
                 username: claims.username,

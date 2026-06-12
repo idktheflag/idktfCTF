@@ -30,14 +30,14 @@ pub enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, message) = match &self {
-            AppError::NotFound      => (StatusCode::NOT_FOUND,            self.to_string()),
-            AppError::Unauthorized  => (StatusCode::UNAUTHORIZED,         self.to_string()),
-            AppError::Forbidden     => (StatusCode::FORBIDDEN,            self.to_string()),
-            AppError::Conflict(m)   => (StatusCode::CONFLICT,             m.clone()),
-            AppError::BadRequest(m) => (StatusCode::BAD_REQUEST,          m.clone()),
+            AppError::NotFound => (StatusCode::NOT_FOUND, self.to_string()),
+            AppError::Unauthorized => (StatusCode::UNAUTHORIZED, self.to_string()),
+            AppError::Forbidden => (StatusCode::FORBIDDEN, self.to_string()),
+            AppError::Conflict(m) => (StatusCode::CONFLICT, m.clone()),
+            AppError::BadRequest(m) => (StatusCode::BAD_REQUEST, m.clone()),
             // Don't leak internal DB details to the client:
-            AppError::Database(_)   => (StatusCode::INTERNAL_SERVER_ERROR, "database error".into()),
-            AppError::Internal(_)   => (StatusCode::INTERNAL_SERVER_ERROR, "internal error".into()),
+            AppError::Database(_) => (StatusCode::INTERNAL_SERVER_ERROR, "database error".into()),
+            AppError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "internal error".into()),
         };
 
         (status, Json(json!({ "error": message }))).into_response()

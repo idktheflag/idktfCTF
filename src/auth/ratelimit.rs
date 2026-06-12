@@ -32,13 +32,11 @@ impl RateLimiter {
                 break;
             }
         }
-        if attempts.len()>=MAX_ATTEMPTS {
-            return Err(AppError::BadRequest(
-                    format!(
-                        "rate limit exceeded: {} flag submissions per minute max",
-                        MAX_ATTEMPTS
-                    ),
-            ));
+        if attempts.len() >= MAX_ATTEMPTS {
+            return Err(AppError::BadRequest(format!(
+                "rate limit exceeded: {} flag submissions per minute max",
+                MAX_ATTEMPTS
+            )));
         }
         attempts.push_back(now);
         Ok(())

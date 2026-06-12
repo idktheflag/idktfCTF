@@ -14,7 +14,7 @@ pub struct AppState {
 
 #[derive(Clone)]
 pub struct CtftimeConfig {
-    pub client_id:     String,
+    pub client_id: String,
     pub client_secret: String,
-    pub redirect_uri:  String,
+    pub redirect_uri: String,
 }

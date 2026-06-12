@@ -4,12 +4,7 @@ use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{
-    auth::crypto::jwt,
-    db::models::User,
-    error::AppError,
-    state::AppState,
-};
+use crate::{auth::crypto::jwt, db::models::User, error::AppError, state::AppState};
 
 // request/response types
 #[derive(Deserialize)]
@@ -77,7 +72,8 @@ pub async fn login(
         .ok_or(AppError::Unauthorized)?;
     // pwd_hash is None if this account was created via CTFtime OAuth.
     // Tell them to log in with CTFtime instead of returning a confusing 401.
-    let hash = user.pwd_hash
+    let hash = user
+        .pwd_hash
         .as_deref()
         .ok_or_else(|| AppError::BadRequest("this account uses CTFtime login".into()))?;
 

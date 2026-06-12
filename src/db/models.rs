@@ -36,20 +36,20 @@ pub struct Challenge {
 #[derive(Debug, Clone, sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct Solve {
-    pub id:             Uuid,
-    pub user_id:        Uuid,
-    pub challenge_id:   Uuid,
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub challenge_id: Uuid,
     pub is_first_blood: bool,
-    pub solved_at:      DateTime<Utc>,
+    pub solved_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct Team {
-    pub id:          Uuid,
-    pub name:        String,
+    pub id: Uuid,
+    pub name: String,
     pub invite_code: Option<String>,
     // Set when a team is created/linked via CTFtime OAuth.
-    pub ctftime_id:  Option<i32>,
-    pub created_at:  DateTime<Utc>,
+    pub ctftime_id: Option<i32>,
+    pub created_at: DateTime<Utc>,
 }
