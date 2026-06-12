@@ -7,20 +7,32 @@ import Layout from '../../layouts/Layout.astro';
     <script is:inline slot="head">
       (function () {
         document.documentElement.style.display = 'none';
+        var ok = false;
         try {
           var raw = localStorage.getItem('ctf_token');
-          if (!raw) { window.location.replace('/403'); return; }
-          var parts = raw.split('.');
-          if (parts.length !== 3) throw 0;
-          var claims = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-          if (claims.exp < Math.floor(Date.now() / 1000)) {
-            localStorage.removeItem('ctf_token');
-            window.location.replace('/403');
-            return;
+          if (raw) {
+            var parts = raw.split('.');
+            if (parts.length === 3) {
+              var claims = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+              if (claims.exp >= Math.floor(Date.now() / 1000) && claims.is_admin) ok = true;
+              else if (claims.exp < Math.floor(Date.now() / 1000)) localStorage.removeItem('ctf_token');
+            }
           }
-          if (!claims.is_admin) { window.location.replace('/403'); return; }
-        } catch (e) { window.location.replace('/403'); return; }
-        document.documentElement.style.display = '';
+        } catch (e) {}
+        if (ok) {
+          document.documentElement.style.display = '';
+        } else {
+          document.addEventListener('DOMContentLoaded', function () {
+            document.querySelector('main').innerHTML =
+              '<div class="forbidden-wrap">' +
+              '<p class="forbidden-code">403</p>' +
+              '<h1>Forbidden</h1>' +
+              '<p class="forbidden-sub">You don\'t have permission to view this page.</p>' +
+              '<a href="/" class="btn btn-ghost">Go home</a>' +
+              '</div>';
+            document.documentElement.style.display = '';
+          });
+        }
       })();
     </script>
 
@@ -247,4 +259,9 @@ import Layout from '../../layouts/Layout.astro';
     .form-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem; }
 
     .badge-admin { background: rgba(255,75,75,0.15); color: var(--accent); padding: 0.15em 0.5em; border-radius: 4px; font-size: 0.8em; font-weight: 700; }
+
+    .forbidden-wrap { text-align: center; padding: 6rem 0; }
+    .forbidden-code { font-size: 6rem; font-weight: 700; color: var(--accent); margin: 0; line-height: 1; }
+    .forbidden-wrap h1 { margin-top: 0.25em; }
+    .forbidden-sub { color: var(--text-muted); margin-bottom: 2rem; }
 </style>
