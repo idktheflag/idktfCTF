@@ -14,6 +14,7 @@ const { title = "idktfCTF" } = Astro.props;
         <link rel="preload" href="/fonts/atkinson-bold.woff" as="font" type="font/woff" crossorigin />
         <meta name="generator" content={Astro.generator} />
         <title>{title} — idktfCTF</title>
+        <slot name="head" />
     </head>
     <body>
         <Header />

@@ -2,6 +2,28 @@
 import Layout from '../../layouts/Layout.astro';
 ---
 <Layout title="Admin">
+    <!-- Runs synchronously during HTML parsing, before any paint.
+         Hides the page immediately, then redirects non-admins before they see anything. -->
+    <script is:inline slot="head">
+      (function () {
+        document.documentElement.style.display = 'none';
+        try {
+          var raw = localStorage.getItem('ctf_token');
+          if (!raw) { window.location.replace('/login'); return; }
+          var parts = raw.split('.');
+          if (parts.length !== 3) throw 0;
+          var claims = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+          if (claims.exp < Math.floor(Date.now() / 1000)) {
+            localStorage.removeItem('ctf_token');
+            window.location.replace('/login');
+            return;
+          }
+          if (!claims.is_admin) { window.location.replace('/challenges'); return; }
+        } catch (e) { window.location.replace('/login'); return; }
+        document.documentElement.style.display = '';
+      })();
+    </script>
+
     <h1>Admin Panel</h1>
 
     <div class="admin-tabs">
@@ -58,13 +80,8 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <script>
-    import { admin, currentUser, ApiError } from '../../lib/api';
+    import { admin, ApiError } from '../../lib/api';
     import type { AdminChallenge, CreateChallengeRequest } from '../../lib/api';
-
-    // Admin-only page.
-    const me = currentUser();
-    if (!me) window.location.href = '/login';
-    if (!me?.is_admin) window.location.href = '/challenges';
 
     // ── Tab switching ──────────────────────────────────────────────────────────
     document.querySelectorAll('.tab-btn').forEach(btn => {
