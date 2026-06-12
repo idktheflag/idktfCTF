@@ -1,0 +1,32 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="403 Forbidden">
+    <div class="forbidden-wrap">
+        <p class="code">403</p>
+        <h1>Forbidden</h1>
+        <p class="sub">You don't have permission to access this page.</p>
+        <a href="/" class="btn btn-ghost">Go home</a>
+    </div>
+</Layout>
+
+<style>
+    .forbidden-wrap {
+        text-align: center;
+        padding: 6rem 0;
+    }
+    .code {
+        font-size: 6rem;
+        font-weight: 700;
+        color: var(--accent);
+        margin: 0;
+        line-height: 1;
+    }
+    .forbidden-wrap h1 {
+        margin-top: 0.25em;
+    }
+    .sub {
+        color: var(--text-muted);
+        margin-bottom: 2rem;
+    }
+</style>

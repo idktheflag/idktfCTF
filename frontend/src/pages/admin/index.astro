@@ -9,17 +9,17 @@ import Layout from '../../layouts/Layout.astro';
         document.documentElement.style.display = 'none';
         try {
           var raw = localStorage.getItem('ctf_token');
-          if (!raw) { window.location.replace('/login'); return; }
+          if (!raw) { window.location.replace('/403'); return; }
           var parts = raw.split('.');
           if (parts.length !== 3) throw 0;
           var claims = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
           if (claims.exp < Math.floor(Date.now() / 1000)) {
             localStorage.removeItem('ctf_token');
-            window.location.replace('/login');
+            window.location.replace('/403');
             return;
           }
-          if (!claims.is_admin) { window.location.replace('/challenges'); return; }
-        } catch (e) { window.location.replace('/login'); return; }
+          if (!claims.is_admin) { window.location.replace('/403'); return; }
+        } catch (e) { window.location.replace('/403'); return; }
         document.documentElement.style.display = '';
       })();
     </script>
