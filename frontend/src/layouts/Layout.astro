@@ -152,4 +152,27 @@ const { title = "idktfCTF" } = Astro.props;
         padding: 0; margin: -1px; overflow: hidden;
         clip: rect(0,0,0,0); white-space: nowrap; border-width: 0;
     }
+
+    /* ── Error pages (403, 404, etc.) ──────────────────────────────────────── */
+    .error-wrap {
+        text-align: center;
+        padding: 6rem 0;
+    }
+    .error-code {
+        font-size: 8rem;
+        font-weight: 700;
+        color: var(--accent);
+        margin: 0;
+        line-height: 1;
+        letter-spacing: -0.02em;
+    }
+    .error-wrap h1 {
+        margin-top: 0.2em;
+        margin-bottom: 0.4em;
+        font-size: 1.6rem;
+    }
+    .error-wrap p {
+        color: var(--text-muted);
+        margin-bottom: 2rem;
+    }
 </style>
