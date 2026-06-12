@@ -181,6 +181,21 @@ Roughly prioritised top-to-bottom within each section.
 
 ---
 
+## design / visuals
+
+- [ ] set up a Figma file — design the full UI before implementing, especially for pages that don't exist yet (profile, team page, scoreboard graph, announcements, countdown)
+- [ ] design system audit — consolidate spacing, type scale, and colour tokens into one place rather than ad-hoc values scattered across per-page `<style>` blocks
+- [ ] improve homepage — currently just a heading and two buttons; needs more personality (team logo, event info, countdown once timing is implemented)
+- [ ] challenge cards — more visual hierarchy; category colour coding, difficulty indicator, first blood badge
+- [ ] scoreboard — currently a plain table; consider a top-3 podium, medals, score delta indicators
+- [ ] first blood + correct flag submission animations / confetti
+- [ ] empty states — "no challenges yet", "no teams yet" etc. need actual designs not just grey text
+- [ ] consistent page-level layout — some pages have a centred narrow column, others are full-width; needs a decision and a pass to make it uniform
+- [ ] dark mode is the only mode — a light mode toggle is probably not needed but worth a Figma decision
+- [ ] mobile layout pass — most pages have a hamburger menu but the content layouts haven't been tested on small screens
+
+---
+
 ## misc / polish
 
 - [ ] `rules.astro` links to `https://discord.gg/idktheflag` — make sure that's the real invite link
