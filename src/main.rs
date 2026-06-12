@@ -4,6 +4,7 @@ use axum::{
     routing::{delete, get, patch, post, put},
     Router,
 };
+use tower_http::cors::{Any, CorsLayer};
 
 mod auth;
 mod db;
@@ -92,7 +93,13 @@ async fn main() {
             patch(routes::admin::toggle_challenge),
         )
         .route("/admin/users", get(routes::admin::list_users))
-        .with_state(state);
+        .with_state(state)
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any),
+        );
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
         .expect("failed to bind port 3000");
