@@ -13,6 +13,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct AuthUser {
     pub user_id: Uuid,
     pub username: String,
@@ -20,6 +21,7 @@ pub struct AuthUser {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct AdminUser(pub AuthUser);
 
 impl FromRequestParts<Arc<AppState>> for AuthUser {

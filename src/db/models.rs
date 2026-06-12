@@ -34,6 +34,7 @@ pub struct Challenge {
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
+#[allow(dead_code)]
 pub struct Solve {
     pub id:             Uuid,
     pub user_id:        Uuid,
@@ -43,6 +44,7 @@ pub struct Solve {
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
+#[allow(dead_code)]
 pub struct Team {
     pub id:          Uuid,
     pub name:        String,

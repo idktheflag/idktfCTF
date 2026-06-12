@@ -6,7 +6,7 @@ use axum::{
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use hmac::{Hmac, Mac};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sha2::Sha256;
 use subtle::ConstantTimeEq;
 use uuid::Uuid;
@@ -34,11 +34,6 @@ struct CtftimeTeamInfo {
 #[derive(Deserialize)]
 struct TokenResponse {
     access_token: String,
-}
-
-#[derive(Serialize)]
-pub struct AuthResponse {
-    pub token: String,
 }
 
 #[derive(Deserialize)]
