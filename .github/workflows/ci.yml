@@ -81,9 +81,10 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run tests
-        run: cargo test --lib
-        # --lib: only runs tests in library crates and inline #[cfg(test)] modules.
-        # Skips integration tests that would need a running Postgres.
+        run: cargo test
+        # Runs all inline #[cfg(test)] modules in the binary (e.g. jwt.rs tests).
+        # Skips integration tests by not having a DATABASE_URL set — sqlx runtime
+        # queries will simply not be reached by these unit tests.
 
   # ── Build ─────────────────────────────────────────────────────────────────────
   build:
